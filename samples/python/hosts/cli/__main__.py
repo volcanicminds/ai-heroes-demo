@@ -86,6 +86,25 @@ async def cli(
             )
 
 
+def to_dict(obj):
+    """Convert an object to a dict if possible."""
+    if isinstance(obj, dict):
+        return obj
+    if hasattr(obj, 'model_dump') and callable(obj.model_dump):
+        return obj.model_dump()
+    if hasattr(obj, '__dict__'):
+        return obj.__dict__
+    return {}
+
+
+def print_parts(parts):
+    if parts:
+        for part in parts:
+            print(part.text)
+        return True
+    return False
+
+
 async def completeTask(
     client: A2AClient,
     streaming,
@@ -150,9 +169,27 @@ async def completeTask(
     if streaming:
         response_stream = client.send_task_streaming(payload)
         async for result in response_stream:
-            print(
-                f'stream event => {result.model_dump_json(exclude_none=True)}'
-            )
+            status = getattr(result.result, 'status', None)
+            message = getattr(status, 'message', None) if status else None
+            parts = getattr(message, 'parts', None) if message else None
+            if parts:
+                for part in parts: print(part.text)
+                continue
+            artifact = getattr(result.result, 'artifact', None)
+            artifact_parts = getattr(artifact, 'parts', None) if artifact else None
+            if artifact_parts:
+                for part in artifact_parts: print(part.text)
+                continue
+            result_dict = to_dict(result.result)
+            status_dict = to_dict(result_dict.get('status', {}))
+            # Remove keys with value None for minimality check
+            minimal_result_keys = {k for k, v in result_dict.items() if v is not None}
+            # Allow 'message' in status_dict, as it may be present and None
+            if minimal_result_keys.issubset({'id', 'status', 'final'}) \
+                and set(status_dict.keys()).issubset({'state', 'timestamp', 'message'}):
+                continue
+            print(f'stream event => {result.model_dump_json(exclude_none=True)}')
+
         taskResult = await client.get_task({'id': taskId})
     else:
         # Display loading animation
