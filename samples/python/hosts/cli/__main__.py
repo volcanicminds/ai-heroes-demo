@@ -155,8 +155,18 @@ async def completeTask(
             )
         taskResult = await client.get_task({'id': taskId})
     else:
+        # Display loading animation
+        print('\nLoading...')
         taskResult = await client.send_task(payload)
-        print(f'\n{taskResult.model_dump_json(exclude_none=True)}')
+        # Clear loading animation (replace with spaces)
+        print('\r' + ' ' * 20, end='')
+        try:
+            full_text = ""
+            for part in taskResult.result.status.message.parts:
+                full_text += part.text
+            print(f'\n--- START ---\n{full_text}\n--- END ---')
+        except:
+            print(f'\n{taskResult.model_dump_json(exclude_none=True)}')
 
     ## if the result is that more input is required, loop again.
     state = TaskState(taskResult.result.status.state)
