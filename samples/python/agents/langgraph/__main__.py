@@ -28,11 +28,6 @@ logger = logging.getLogger(__name__)
 def main(host, port):
     """Starts the Currency Agent server."""
     try:
-        if not os.getenv('GOOGLE_API_KEY'):
-            raise MissingAPIKeyError(
-                'GOOGLE_API_KEY environment variable not set.'
-            )
-
         capabilities = AgentCapabilities(streaming=True, pushNotifications=True)
         skill = AgentSkill(
             id='convert_currency',
