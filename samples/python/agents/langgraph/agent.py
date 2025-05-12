@@ -31,11 +31,11 @@ def get_exchange_rate(
     Returns:
         A dictionary containing the exchange rate data, or an error message if the request fails.
     """
+    
     try:
-        response = httpx.get(
-            f'https://api.frankfurter.app/{currency_date}',
-            params={'from': currency_from, 'to': currency_to},
-        )
+        url = f'https://api.frankfurter.app/{currency_date}'
+        params = {'from': currency_from, 'to': currency_to}
+        response = httpx.get(url, params=params)
         response.raise_for_status()
 
         data = response.json()
@@ -70,7 +70,7 @@ class CurrencyAgent:
     def __init__(self):
         # Use Ollama's llama3.2:latest model via LangChain Ollama integration
         # Make sure you have pulled the model with: ollama pull llama3.2:latest
-        self.model = ChatOllama(model="llama3.2:latest", temperature=0)
+        self.model = ChatOllama(model="orieg/gemma3-tools:4b", temperature=0)
         self.tools = [get_exchange_rate]
 
         self.graph = create_react_agent(
