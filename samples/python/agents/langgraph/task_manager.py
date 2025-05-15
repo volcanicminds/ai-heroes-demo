@@ -133,6 +133,7 @@ class AgentTaskManager(InMemoryTaskManager):
 
     async def on_send_task(self, request: SendTaskRequest) -> SendTaskResponse:
         """Handles the 'send task' request."""
+        logger.info(f"[A2A] Received 'tasks/send' request: id={request.id}, params={request.params}")
         validation_error = self._validate_request(request)
         if validation_error:
             return SendTaskResponse(id=request.id, error=validation_error.error)
@@ -157,6 +158,7 @@ class AgentTaskManager(InMemoryTaskManager):
         task_send_params: TaskSendParams = request.params
         query = self._get_user_query(task_send_params)
         try:
+            logger.info(f"[A2A] Invoking agent with query: {query}, sessionId={task_send_params.sessionId}")
             agent_response = self.agent.invoke(
                 query, task_send_params.sessionId
             )
@@ -168,6 +170,7 @@ class AgentTaskManager(InMemoryTaskManager):
     async def on_send_task_subscribe(
         self, request: SendTaskStreamingRequest
     ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
+        logger.info(f"[A2A] Received 'tasks/sendSubscribe' request: id={request.id}, params={request.params}")
         try:
             error = self._validate_request(request)
             if error:
@@ -191,6 +194,7 @@ class AgentTaskManager(InMemoryTaskManager):
                 task_send_params.id, False
             )
 
+            logger.info(f"[A2A] Starting streaming agent for query: {self._get_user_query(task_send_params)}, sessionId={task_send_params.sessionId}")
             asyncio.create_task(self._run_streaming_agent(request))
 
             return self.dequeue_events_for_sse(
@@ -210,6 +214,7 @@ class AgentTaskManager(InMemoryTaskManager):
         self, request: SendTaskRequest, agent_response: dict
     ) -> SendTaskResponse:
         """Processes the agent's response and updates the task store."""
+        logger.info(f"[A2A] Processing agent response for request id={request.id}: {agent_response}")
         task_send_params: TaskSendParams = request.params
         task_id = task_send_params.id
         history_length = task_send_params.historyLength

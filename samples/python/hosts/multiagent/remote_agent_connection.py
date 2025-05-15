@@ -78,7 +78,23 @@ class RemoteAgentConnections:
                     break
             return task
         # Non-streaming
-        response = await self.agent_client.send_task(request.model_dump())
+        payload = request.model_dump(exclude_none=True)
+        print("DEBUG: Payload being sent to agent:", payload)
+        response = await self.agent_client.send_task(payload)
+        print("DEBUG: Raw response from agent:", response)
+        print("DEBUG: Type of response:", type(response))
+        # Try to print the raw JSON if possible
+        if hasattr(response, 'model_dump_json'):
+            print("DEBUG: Response model_dump_json:", response.model_dump_json())
+        elif hasattr(response, 'model_dump'):
+            print("DEBUG: Response model_dump:", response.model_dump())
+        else:
+            print("DEBUG: Response as dict:", dict(response) if hasattr(response, '__dict__') else response)
+
+        # Defensive: check if response.result exists
+        if not hasattr(response, 'result') or response.result is None:
+            print("ERROR: Agent response has no 'result' field or is None! Returning None.")
+            return None
         merge_metadata(response.result, request)
         # For task status updates, we need to propagate metadata and provide
         # a unique message id.
