@@ -59,7 +59,8 @@ class HostAgent:
 
     def create_agent(self) -> Agent:
         return Agent(
-            model='gemini-2.0-flash-001',
+            model="ollama/llama3.2:latest",
+            base_url="http://localhost:11434",
             name='host_agent',
             instruction=self.root_instruction,
             before_model_callback=self.before_model_callback,
@@ -76,29 +77,29 @@ class HostAgent:
     def root_instruction(self, context: ReadonlyContext) -> str:
         current_agent = self.check_state(context)
         return f"""You are an expert delegator that can delegate the user request to the
-appropriate remote agents.
+            appropriate remote agents.
 
-Discovery:
-- You can use `list_remote_agents` to list the available remote agents you
-can use to delegate the task.
+            Discovery:
+            - You can use `list_remote_agents` to list the available remote agents you
+            can use to delegate the task.
 
-Execution:
-- For actionable tasks, you can use `create_task` to assign tasks to remote agents to perform.
-Be sure to include the remote agent name when you respond to the user.
+            Execution:
+            - For actionable tasks, you can use `create_task` to assign tasks to remote agents to perform.
+            Be sure to include the remote agent name when you respond to the user.
 
-You can use `check_pending_task_states` to check the states of the pending
-tasks.
+            You can use `check_pending_task_states` to check the states of the pending
+            tasks.
 
-Please rely on tools to address the request, and don't make up the response. If you are not sure, please ask the user for more details.
-Focus on the most recent parts of the conversation primarily.
+            Please rely on tools to address the request, and don't make up the response. If you are not sure, please ask the user for more details.
+            Focus on the most recent parts of the conversation primarily.
 
-If there is an active agent, send the request to that agent with the update task tool.
+            If there is an active agent, send the request to that agent with the update task tool.
 
-Agents:
-{self.agents}
+            Agents:
+            {self.agents}
 
-Current agent: {current_agent['active_agent']}
-"""
+            Current agent: {current_agent['active_agent']}
+            """
 
     def check_state(self, context: ReadonlyContext):
         state = context.state
@@ -151,7 +152,6 @@ Current agent: {current_agent['active_agent']}
             raise ValueError(f'Agent {agent_name} not found')
         state = tool_context.state
         state['agent'] = agent_name
-        card = self.cards[agent_name]
         client = self.remote_agent_connections[agent_name]
         if not client:
             raise ValueError(f'Client not available for {agent_name}')
