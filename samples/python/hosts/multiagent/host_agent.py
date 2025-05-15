@@ -1,6 +1,7 @@
 import base64
 import json
 import uuid
+import traceback
 
 from common.client import A2ACardResolver
 from common.types import (
@@ -19,7 +20,7 @@ from google.adk.agents.readonly_context import ReadonlyContext
 from google.adk.tools.tool_context import ToolContext
 from google.genai import types
 
-from .remote_agent_connection import RemoteAgentConnections, TaskUpdateCallback
+from remote_agent_connection import RemoteAgentConnections, TaskUpdateCallback
 
 
 class HostAgent:
@@ -65,8 +66,8 @@ class HostAgent:
             instruction=self.root_instruction,
             before_model_callback=self.before_model_callback,
             description=(
-                'This agent orchestrates the decomposition of the user request into'
-                ' tasks that can be performed by the child agents.'
+                'This agent analyzes user requests and delegates them to the most '
+                'appropriate specialized remote agent using its tools.'
             ),
             tools=[
                 self.list_remote_agents,
@@ -75,31 +76,61 @@ class HostAgent:
         )
 
     def root_instruction(self, context: ReadonlyContext) -> str:
-        current_agent = self.check_state(context)
-        return f"""You are an expert delegator that can delegate the user request to the
-            appropriate remote agents.
+        agent_descriptions = []
+        if self.cards:
+            for i, (name, card) in enumerate(self.cards.items()):
+                description = card.description if card.description else 'No description available.'
+                skills_info = ""
+                if card.skills:
+                    skills_list = []
+                    for skill in card.skills:
+                        skill_desc = skill.description if skill.description else "No skill description."
+                        skill_line = f"- Skill: {skill.name if skill.name else 'Unnamed skill'} ({skill_desc})"
+                        if skill.examples:
+                            skill_line += f" (e.g., \"{skill.examples[0]}\")"
+                        skills_list.append(skill_line)
+                    
+                    if skills_list:
+                        skills_info = "\n    Skills:\n      " + "\n      ".join(skills_list)
+                agent_descriptions.append(f"Agent Name: {name}\n  Description: {description}{skills_info}")
+        
+        available_agents_str = "\n\n".join(agent_descriptions) if agent_descriptions else "No remote agents currently available. You may need to use 'list_remote_agents' if this seems incorrect."
 
-            Discovery:
-            - You can use `list_remote_agents` to list the available remote agents you
-            can use to delegate the task.
+        return f"""You are an expert AI task router and delegator.
+Your primary function is to understand the user's current request and delegate it to the most appropriate specialized remote agent.
 
-            Execution:
-            - For actionable tasks, you can use `create_task` to assign tasks to remote agents to perform.
-            Be sure to include the remote agent name when you respond to the user.
+Available Remote Agents and their Capabilities:
+-------------------------------------------------
+{available_agents_str}
+-------------------------------------------------
 
-            You can use `check_pending_task_states` to check the states of the pending
-            tasks.
+Your Task:
+1. Analyze the user's **current and most recent request** carefully.
+2. Review the capabilities (name, description, and skills) of the available remote agents listed above.
+3. Determine which single agent is **best suited** to handle this specific request.
+4. **Crucially, you MUST use the 'send_task' tool to delegate the user's original request to the chosen agent.**
+   - You need to provide the exact 'agent_name' of the chosen agent to the 'send_task' tool.
+   - You need to provide the original 'message' (the user's full request) to the 'send_task' tool.
+5. If no agent is suitable for the request, you should inform the user clearly that you cannot find a suitable agent to handle their specific request and why. Do not attempt to answer it yourself.
+6. If multiple agents seem potentially relevant, choose the one that is most specialized for the core task in the user's request.
+7. Do not attempt to answer the user's request directly. Your sole responsibility is to route the request to the correct agent using the 'send_task' tool or state that no agent is suitable.
+8. After successfully initiating the task with `send_task`, you can inform the user which agent is handling their request, for example: "I am routing your request to the [Chosen Agent Name]..."
 
-            Please rely on tools to address the request, and don't make up the response. If you are not sure, please ask the user for more details.
-            Focus on the most recent parts of the conversation primarily.
+Tool Reminder:
+- `send_task(agent_name: str, message: str)`: Use this tool to send the user's request to the selected agent.
 
-            If there is an active agent, send the request to that agent with the update task tool.
+Example Thought Process:
+User Request: "write an article about how good classical music is for cows producing milk"
+1. Analyze: The user wants an article written (text generation).
+2. Review Agents: Look for an agent skilled in text generation, writing articles, or creative content.
+   - If 'Text Generator Agent' (Description: Creates articles and textual content) exists: This is the best match.
+   - If 'Currency Agent' (Description: Handles currency conversions) exists: This is not a match.
+3. Determine: 'Text Generator Agent' is the one.
+4. Use Tool: Call `send_task(agent_name="Text Generator Agent", message="write an article about how good classical music is for cows producing milk")`.
+5. Inform User: "I am routing your request to the Text Generator Agent."
 
-            Agents:
-            {self.agents}
-
-            Current agent: {current_agent['active_agent']}
-            """
+Now, process the user's actual request based on these instructions.
+"""
 
     def check_state(self, context: ReadonlyContext):
         state = context.state
@@ -210,6 +241,126 @@ class HostAgent:
             for artifact in task.artifacts:
                 response.extend(convert_parts(artifact.parts, tool_context))
         return response
+
+    async def process_prompt_and_delegate(self, user_prompt: str, session_id: str) -> str:
+        """
+        Processes the user's prompt, uses the HostAgent's LLM to decide which sub-agent to delegate to,
+        and then uses the 'send_task' tool to delegate.
+        Returns a summary of the action taken or result.
+        """
+        if not hasattr(self, '_adk_agent_instance') or not self._adk_agent_instance:
+            # Store the created ADK agent instance on self for potential reuse
+            self._adk_agent_instance = self.create_agent()
+
+        current_state = {'session_id': session_id} 
+
+        class MockReadonlyContext(ReadonlyContext):
+            def __init__(self, state_dict):
+                self._state = state_dict
+            @property
+            def state(self): return self._state
+            @property
+            def history(self): return [] 
+            @property
+            def last_tool_metadata(self): return None # Corrected typo
+
+        instruction_context = MockReadonlyContext(current_state)
+        system_instruction_str = self.root_instruction(instruction_context)
+
+        conversation_history = [
+            types.Content(parts=[types.Part(text=user_prompt)], role="user")
+        ]
+        
+        try:
+            genai_model = self._adk_agent_instance._model 
+            
+            # Correctly access the tools in the format GenAI SDK expects
+            # Assuming ADK Agent prepares tools in its tool_config.function_declarations
+            if not hasattr(self._adk_agent_instance, 'tool_config') or \
+               not hasattr(self._adk_agent_instance.tool_config, 'function_declarations'):
+                # Fallback or error if tools are not found as expected
+                # This might indicate a different ADK structure.
+                # For now, we'll try to proceed with an empty list if not found,
+                # though this would mean the LLM can't call tools.
+                # A better approach would be to ensure tool_config is correctly populated by ADK.
+                # print("Warning: Tool configuration not found in expected structure.", file=sys.stderr)
+                genai_tools_list = []
+            else:
+                genai_tools_list = self._adk_agent_instance.tool_config.function_declarations
+
+            response = await genai_model.generate_content_async(
+                contents=conversation_history,
+                generation_config=self._adk_agent_instance._generation_config,
+                safety_settings=self._adk_agent_instance._safety_settings,
+                tools=genai_tools_list, # Pass the list of GenAI Tool objects
+                system_instruction=types.Content(parts=[types.Part(text=system_instruction_str)], role="system")
+            )
+
+            llm_response_content = ""
+            if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
+                for part in response.candidates[0].content.parts:
+                    if part.text:
+                        llm_response_content += part.text
+                    elif part.function_call:
+                        function_name = part.function_call.name
+                        args = dict(part.function_call.args)
+                        
+                        if function_name == "send_task":
+                            class MockToolContext(ToolContext):
+                                def __init__(self, state_dict, adk_agent):
+                                    self._state = state_dict
+                                    self._adk_agent = adk_agent # The ADK Agent instance
+                                    self.actions = self._MockToolContextActions()
+
+                                @property
+                                def state(self): return self._state
+                                @property
+                                def history(self): return []
+                                def save_artifact(self, name: str, artifact_content: any): pass
+                                def get_config(self) -> dict[str, any]: return {}
+                                # Required by ADK ToolContext interface
+                                @property
+                                def agent(self): return self._adk_agent 
+
+                                class _MockToolContextActions:
+                                    def __init__(self):
+                                        self.skip_summarization = False
+                                        self.escalate = False
+                                        self.respond_to_user = False
+                                        self.end_session = False
+                                        self.auth_error = False
+
+                            tool_ctx = MockToolContext(current_state, self._adk_agent_instance)
+                            
+                            if 'message' not in args:
+                                args['message'] = user_prompt 
+                            
+                            tool_result = await self.send_task(
+                                agent_name=args['agent_name'], 
+                                message=args['message'], 
+                                tool_context=tool_ctx
+                            )
+                            if isinstance(tool_result, list):
+                                result_str = " ".join(str(r) for r in tool_result if r)
+                            else:
+                                result_str = str(tool_result)
+
+                            confirmation_message = llm_response_content if llm_response_content else f"Task sent to {args['agent_name']}."
+                            return f"{confirmation_message}\nSub-agent response/status: {result_str if result_str else 'No immediate data.'}"
+                        else:
+                            return f"Host LLM tried to call unhandled tool: {function_name}"
+            
+            if llm_response_content:
+                return f"HostAgent LLM response: {llm_response_content}"
+            else:
+                # Check if there was a blocked prompt or other issue
+                if response.prompt_feedback and response.prompt_feedback.block_reason:
+                    return f"HostAgent LLM request was blocked: {response.prompt_feedback.block_reason_message}"
+                return "HostAgent LLM did not provide a response or a recognized tool call."
+
+        except Exception as e:
+            # Ensure traceback is imported if used here. It was added in the previous apply.
+            return f"Error in HostAgent processing: {str(e)}\n{traceback.format_exc()}"
 
 
 def convert_parts(parts: list[Part], tool_context: ToolContext):
