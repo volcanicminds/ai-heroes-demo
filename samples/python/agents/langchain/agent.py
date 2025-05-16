@@ -39,7 +39,10 @@ def discover_agents() -> List[Dict[str, Any]]:
 
 @tool
 async def route_message(agent_url: str, message: str, session_id: str) -> str:
-    """Routes the message to the selected agent and returns its response."""
+    """
+    Sends the user's message to the specified agent URL and returns the agent's response.
+    Use this tool after selecting the appropriate agent based on the user's query.
+    """
     try:
         client = A2AClient(agent_url)
         task_id = str(uuid.uuid4())
