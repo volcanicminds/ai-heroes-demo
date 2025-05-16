@@ -70,7 +70,7 @@ class CurrencyAgent:
     def __init__(self):
         # Use Ollama's llama3.2:latest model via LangChain Ollama integration
         # Make sure you have pulled the model with: ollama pull llama3.2:latest
-        self.model = ChatOllama(model="orieg/gemma3-tools:4b", temperature=0)
+        self.model = ChatOllama(model="acidtib/qwen2.5-coder-cline:7b", temperature=0)
         self.tools = [get_exchange_rate]
 
         self.graph = create_react_agent(
