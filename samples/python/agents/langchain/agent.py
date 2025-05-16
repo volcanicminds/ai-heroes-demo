@@ -107,13 +107,15 @@ class LangchainAgent:
         - The session_id is provided in the input variables
         - You MUST use the exact session_id value provided
         - You MUST return only the response from route_message
+         
+        CRITICAL: Always call `discover_agents` tool first to get the list of available agents.
 
-        Example usage:
+        Example usage [THIS IS JUST AND EXAMPLE]:
         Input: "Get USD/EUR rate"
-        1. discover_agents()
+        1. discover_agents() <--- This MUST be called first ALWAYS
         2. route_message(
-            agent_url="http://localhost:10000",
-            message="Get USD/EUR rate",
+            agent_url="http://localhost:10000", [THIS IS JUST AND EXAMPLE]
+            message="Get USD/EUR rate", 
             session_id=input_variables.session_id  # Use the provided session_id
         )
          CRITICAL: session_id is available directly in the context. DO NOT use 'input_variables.session_id'
