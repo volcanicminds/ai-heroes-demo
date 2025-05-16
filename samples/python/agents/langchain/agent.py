@@ -103,17 +103,33 @@ Always start by discovering agents unless the message specifically mentions that
             }
 
     def invoke(self, query: str, session_id: str) -> Dict[str, Any]:
+        """
+        Synchronous wrapper for async_invoke.
+        This method ensures we properly handle the async/sync boundary.
+        """
         try:
             logger.info(f"Invoking with query: {query}")
-            return asyncio.run(self.async_invoke(query, session_id))
-        except RuntimeError as e:
-            # Fallback per event loop già attivo (es. in FastAPI)
-            logger.warning("Detected running event loop, using fallback.")
+            # Use asyncio.get_event_loop().run_until_complete for running the async function
+            # from synchronous code
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                return loop.create_task(self.async_invoke(query, session_id))
+                logger.warning("Event loop already running, cannot use run_until_complete. Using run in thread.")
+                # If we're in an already running loop (e.g., inside FastAPI),
+                # we can't run_until_complete - must use asyncio.run_coroutine_threadsafe
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(lambda: asyncio.run(self.async_invoke(query, session_id)))
+                    return future.result()
             else:
+                # Normal case - run the coroutine in the current loop
                 return loop.run_until_complete(self.async_invoke(query, session_id))
+        except Exception as e:
+            logger.exception(f"Error in invoke: {e}")
+            return {
+                "is_task_complete": True,
+                "require_user_input": False,
+                "content": f"An error occurred during processing: {str(e)}"
+            }
 
     async def stream(self, query: str, session_id: str) -> AsyncIterable[Dict[str, Any]]:
         logger.warning("Streaming is not supported.")
