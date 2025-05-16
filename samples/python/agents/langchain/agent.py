@@ -40,11 +40,15 @@ def discover_agents() -> List[Dict[str, Any]]:
 @tool
 async def route_message(agent_url: str, message: str, session_id: str) -> str:
     """
-    Sends the user's message to the specified agent URL and returns the agent's response.
-    Use this tool after selecting the appropriate agent based on the user's query.
+    Routes a message to another agent and returns their response.
+    Args:
+        agent_url: The URL of the target agent (e.g., http://localhost:10000)
+        message: The message to send
+        session_id: The session ID for tracking the conversation
     """
     try:
-        client = A2AClient(agent_url)
+        # Create client with the URL parameter
+        client = A2AClient(url=agent_url)  # Changed to use url parameter
         task_id = str(uuid.uuid4())
         request = TaskSendParams(
             id=task_id,
@@ -54,10 +58,13 @@ async def route_message(agent_url: str, message: str, session_id: str) -> str:
         )
         logger.info(f"Sending task to agent at {agent_url}")
         response = await client.send_task(request)
-        return response.task.outputs[0].text if response.task.outputs else "No response"
+        
+        if response and response.task and response.task.outputs:
+            return response.task.outputs[0].text
+        return "No response received from agent"
     except Exception as e:
         logger.error(f"Failed to route message: {e}")
-        return "Routing failed due to an error."
+        return f"Routing failed: {str(e)}"
 
 class LangchainAgent:
     SUPPORTED_CONTENT_TYPES = ['text', 'text/plain']
@@ -68,28 +75,26 @@ class LangchainAgent:
 
         self.prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a specialized routing assistant. Your ONLY purpose is to forward messages to other agents and return their responses.
+        MANDATORY STEPS (execute in order):
+        1. Call `discover_agents()` to get the list of available agents
+        2. Select the most appropriate agent URL based on the request
+        3. Use `route_message(agent_url, message, session_id)` to forward the request and return its response
 
-MANDATORY STEPS (execute in order):
-1. Call `discover_agents()` to get the list of available agents
-2. Select the most appropriate agent URL based on the request
-3. Use `route_message(agent_url, message, session_id)` to forward the request
-4. Return EXACTLY what route_message returns, with no modifications
+        IMPORTANT:
+        - The session_id is provided in the input variables
+        - You MUST use the exact session_id value provided
+        - You MUST return only the response from route_message
 
-STRICT RULES:
-- You MUST use discover_agents() first
-- You MUST use route_message() with the correct agent URL
-- You MUST NOT add any explanations or commentary
-- You MUST ONLY return what route_message() returns
-
-Example for currency queries:
-Input: "What's the USD/EUR rate?"
-You must:
-1. Call discover_agents()
-2. Get Currency Agent URL (http://localhost:10000)
-3. Call route_message("http://localhost:10000", "What's the USD/EUR rate?", session_id)
-4. Return the response from route_message
-
-CRITICAL: Do not skip steps or add commentary. Execute all steps in order."""),
+        Example usage:
+        Input: "Get USD/EUR rate"
+        1. discover_agents()
+        2. route_message(
+            agent_url="http://localhost:10000",
+            message="Get USD/EUR rate",
+            session_id=input_variables.session_id  # Use the provided session_id
+        )
+         CRITICAL: session_id is available directly in the context. DO NOT use 'input_variables.session_id'
+         """),
         ("human", "{message}"),
         MessagesPlaceholder(variable_name="agent_scratchpad"),
         ("system", "Remember: You MUST call both discover_agents and route_message tools, in that order.")
@@ -113,19 +118,46 @@ CRITICAL: Do not skip steps or add commentary. Execute all steps in order."""),
     async def async_invoke(self, query: str, session_id: str) -> Dict[str, Any]:
         try:
             logger.info(f"Async invoking with query: {query}")
-            output = await self.runnable.ainvoke({"message": query, "session_id": session_id})
-            content = output.content if hasattr(output, "content") else str(output)
+            # Make session_id directly available in the context
+            output = await self.runnable.ainvoke({
+                "message": query,
+                "session_id": session_id
+            })
+            
+            # Enhanced response handling
+            if isinstance(output, dict):
+                steps = output.get('intermediate_steps', [])
+                for step in reversed(steps):
+                    if isinstance(step, tuple) and len(step) == 2:
+                        action, result = step
+                        if action.tool == 'route_message':
+                            logger.info(f"Found route_message response: {result}")
+                            if isinstance(result, str) and not result.startswith("Routing failed"):
+                                return {
+                                    "is_task_complete": True,
+                                    "require_user_input": False,
+                                    "content": result
+                                }
+                
+                # If we got here, no valid route_message response was found
+                logger.warning("No valid route_message response found in steps")
+                return {
+                    "is_task_complete": True,
+                    "require_user_input": False,
+                    "content": "Failed to get response from target agent."
+                }
+            
             return {
                 "is_task_complete": True,
                 "require_user_input": False,
-                "content": content
+                "content": "Failed to process agent response."
             }
         except Exception as e:
             logger.exception(f"Async invocation failed: {e}")
             return {
                 "is_task_complete": True,
                 "require_user_input": False,
-                "content": "An error occurred during processing."
+                "content": f"Error during processing: {str(e)}"
             }
 
     def invoke(self, query: str, session_id: str) -> Dict[str, Any]:
