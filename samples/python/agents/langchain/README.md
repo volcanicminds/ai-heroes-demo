@@ -1,105 +1,92 @@
 # Langchain Router Agent with A2A Protocol
 
-This sample demonstrates a router agent built with [Langchain](https://www.langchain.com/) and exposed through the A2A protocol. This agent can discover other A2A agents and route incoming messages to the most appropriate agent based on their capabilities.
+This project implements a Langchain-based router agent that leverages the A2A protocol to discover and route messages to other agents. It is designed to facilitate multi-agent communication by dynamically forwarding tasks to the most suitable agent based on their capabilities.
 
-## How It Works
+## Overview
 
-This agent uses Langchain to process incoming messages and decide which discovered agent should handle the request. It includes a tool to discover other A2A agents at predefined URLs. The agent's logic (currently simplified) determines the target agent and forwards the message using the A2A protocol.
+The Langchain Router Agent acts as a middleware for routing tasks between A2A agents. It uses Langchain's tools and models to process incoming messages, discover other agents, and forward tasks to the appropriate agent. The agent is fully compliant with the A2A protocol, ensuring standardized communication.
 
-```mermaid
-sequenceDiagram
-    participant Client as A2A Client
-    participant RouterAgent as Langchain Router Agent
-    participant DiscoveredAgent as Discovered A2A Agent
+### Key Features
 
-    Client->>RouterAgent: Send task with message
-    RouterAgent->>RouterAgent: Process message & decide routing
-    alt Discover Agents
-        RouterAgent->>RouterAgent: Use discover_agents tool
-        RouterAgent-->>Client: Respond with discovered agents
-    else Route Message
-        RouterAgent->>DiscoveredAgent: Send task to selected agent
-        DiscoveredAgent-->>RouterAgent: Respond with result
-        RouterAgent-->>Client: Forward result to client
-    end
-```
-
-## Key Features
-
-- **Agent Discovery**: Uses a tool to find other A2A agents.
-- **Message Routing (Simplified)**: Basic logic to decide where to send messages.
-- **A2A Protocol Integration**: Standardized interaction with the agent.
+- **Agent Discovery**: Automatically identifies other A2A agents using predefined URLs.
+- **Dynamic Message Routing**: Routes tasks to the most suitable agent based on their capabilities.
+- **A2A Protocol Integration**: Ensures seamless communication with other agents.
+- **Extensible Design**: Built with Langchain, allowing easy customization and extension.
 
 ## Prerequisites
 
 - Python 3.12 or higher
-- [UV](https://docs.astral.sh/uv/)
-- Access to a Langchain-supported Language Model (e.g., Google Gemini, Ollama) and potentially an API Key depending on the model.
+- [UV](https://docs.astral.sh/uv/) for environment management
+- Access to a Langchain-supported Language Model (e.g., Google Gemini, Ollama)
 
-## Setup & Running
+## Setup Instructions
 
-1. Navigate to the samples directory:
+1. **Navigate to the Project Directory**:
 
    ```bash
    cd samples/python/agents/langchain
    ```
 
-2. (Optional) Create an environment file with your API key if required by your chosen LLM:
+2. **Set Up Environment Variables** (if required by your LLM):
 
    ```bash
    echo "YOUR_API_KEY_NAME=your_api_key_here" > .env
    ```
 
-   Replace `YOUR_API_KEY_NAME` with the actual environment variable name required by your LLM (e.g., `GOOGLE_API_KEY`).
+   Replace `YOUR_API_KEY_NAME` with the actual environment variable name (e.g., `GOOGLE_API_KEY`).
 
-3. Set up the Python environment and install dependencies:
+3. **Install Dependencies**:
 
    ```bash
    uv python pin 3.12
    uv venv
    source .venv/bin/activate
-   uv install -r requirements.txt # You might need to create a requirements.txt or install from pyproject.toml
+   uv install -r requirements.txt
    ```
 
-   _(Note: You might need to adjust the installation command based on how you manage dependencies with UV and pyproject.toml)_
+4. **Configure the Language Model**:
+   Open `agent.py` and replace the `model` initialization with your desired LLM configuration.
 
-4. Configure your Language Model in `agent.py` by replacing the `model = None` line with your LLM initialization code.
-
-5. Run the agent:
+5. **Run the Agent**:
 
    ```bash
-   # Basic run on default port 10002
-   uv run .
-
-   # On custom host/port
    uv run . --host 0.0.0.0 --port 8080
    ```
 
-6. In a separate terminal, run an A2A [client](/samples/python/hosts/README.md) and connect to the Langchain Router Agent:
-
+6. **Test the Agent**:
+   Use an A2A client to send tasks to the agent:
    ```bash
    cd samples/python/hosts/cli
-   uv run . --agent http://localhost:10002
+   uv run . --agent http://localhost:8080
    ```
 
-## Technical Implementation
+## Technical Details
 
-- **Langchain Agent**: Uses Langchain for message processing and tool usage.
-- **Agent Discovery Tool**: Implemented using `A2ACardResolver`.
-- **Message Routing**: Basic logic implemented in `agent.py` (can be extended).
-- **A2A Protocol Integration**: Full compliance with A2A specifications for receiving and sending tasks.
+### Agent Workflow
+
+1. **Message Processing**: The agent processes incoming messages using Langchain's tools.
+2. **Agent Discovery**: It identifies other agents using the `discover_agents` tool.
+3. **Message Routing**: The `route_message` tool forwards tasks to the selected agent and returns the response.
+
+### Tools and Models
+
+- **Langchain Tools**: `discover_agents` and `route_message` for agent discovery and task routing.
+- **Language Model**: Configurable LLM for processing messages.
+- **A2A Protocol**: Ensures standardized communication between agents.
 
 ## Limitations
 
-- Simplified message routing logic.
-- Streaming is not currently supported.
-- Assumes text-based input/output for routing.
+- **Simplified Routing Logic**: The current implementation uses basic logic for task routing.
+- **No Streaming Support**: Real-time streaming of responses is not yet implemented.
+- **Predefined Agent URLs**: Discovery is limited to a static list of agent URLs.
 
-## Examples
+## Future Improvements
 
-_(Examples will be added once the routing logic is more developed.)_
+- Enhance routing logic to support more complex decision-making.
+- Add support for real-time streaming of responses.
+- Implement dynamic agent discovery mechanisms.
 
 ## Learn More
 
-- [A2A Protocol Documentation](https://google.github.io/A2A/#/documentation)
 - [Langchain Documentation](https://python.langchain.com/v0.2/docs/introduction/)
+- [A2A Protocol Documentation](https://google.github.io/A2A/#/documentation)

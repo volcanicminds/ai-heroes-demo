@@ -1,55 +1,47 @@
-## CrewAI Agent with A2A Protocol
+# CrewAI Agent with A2A Protocol
 
-This sample demonstrates a simple image generation agent built with [CrewAI](https://www.crewai.com/open-source) and exposed through the A2A protocol.
+This project demonstrates a content generation agent built using [CrewAI](https://www.crewai.com/open-source) and exposed via the A2A protocol. The agent collaborates to generate high-quality content through planning, writing, and editing.
 
-## How It Works
+## Overview
 
-This agent utilizes CrewAI and the Google Gemini API to generate images based on text prompts. The A2A protocol enables standardized interaction with the agent, allowing clients to send requests and receive images as artifacts.
+The agent leverages CrewAI's capabilities to:
 
-```mermaid
-sequenceDiagram
-    participant Client as A2A Client
-    participant Server as A2A Server
-    participant Agent as CrewAI Agent
-    participant API as Gemini API
+- Plan content structure based on user prompts.
+- Write detailed and engaging content.
+- Edit and refine the content for clarity and coherence.
 
-    Client->>Server: Send task with text prompt
-    Server->>Agent: Forward prompt to image agent
-    Note over Server,Agent: Optional: Simulated streaming updates
-    Agent->>API: Generate image using Gemini
-    API->>Agent: Return generated image
-    Agent->>Server: Store image and return ID
-    Server->>Client: Respond with image artifact
-```
+The A2A protocol standardizes interactions, enabling seamless communication between clients and the agent.
 
-## Key Components
+## Key Features
 
-- **CrewAI Agent**: Image generation agent with specialized tools
-- **A2A Server**: Provides standardized protocol for interacting with the agent
-- **Image Generation**: Uses Gemini API to create images from text descriptions
-- **Cache System**: Stores generated images for retrieval (in-memory or file-based)
+- **Collaborative Content Generation**: A team of specialized agents (Planner, Writer, Editor) work together to produce high-quality content.
+- **Sequential Workflow**: Tasks are executed in a structured sequence: Planning -> Writing -> Editing.
+- **Logging and Debugging**: Detailed logs are generated for each step, aiding in debugging and analysis.
+- **Customizable**: Easily extendable to support additional tasks or workflows.
 
 ## Prerequisites
 
 - Python 3.12 or higher
-- [UV](https://docs.astral.sh/uv/) package manager (recommended)
+- [UV](https://docs.astral.sh/uv/) package manager
+- [CrewAI](https://www.crewai.com/open-source) library
 - Google API Key (for Gemini access)
 
-## Setup & Running
+## Setup Instructions
 
-1. Navigate to the samples directory:
+1. **Navigate to the project directory:**
 
    ```bash
    cd samples/python/agents/crewai
    ```
 
-2. Create an environment file with your API key (or Vertex AI credentials):
+2. **Set up environment variables:**
+   Create a `.env` file with your API key:
 
    ```bash
    echo "GOOGLE_API_KEY=your_api_key_here" > .env
    ```
 
-3. Set up the Python environment:
+3. **Set up the Python environment:**
 
    ```bash
    uv python pin 3.12
@@ -57,48 +49,48 @@ sequenceDiagram
    source .venv/bin/activate
    ```
 
-4. Run the agent with desired options:
+4. **Install dependencies:**
 
    ```bash
-   # Basic run
-   uv run .
-
-   # On custom host/port
-   uv run . --host 0.0.0.0 --port 8080
+   pip install -r requirements.txt
    ```
 
-5. Run the A2A client:
+5. **Run the agent:**
 
+   ```bash
+   uv run . --host 0.0.0.0 --port 10001
+   ```
+
+6. **Run the A2A client:**
    In a separate terminal:
    ```bash
-   # Connect to the agent (specify the agent URL with correct port)
-   cd samples/python/hosts/cli   
+   cd samples/python/hosts/cli
    uv run . --agent http://localhost:10001
-   
-   # If you changed the port when starting the agent, use that port instead
-   # uv run . --agent http://localhost:YOUR_PORT
    ```
 
-   Or run the [demo app](/A2A/A2A/demo/README.md)
+## How It Works
 
-## Features & Improvements
+1. **Planning**: The Planner agent creates a structured outline based on the user prompt.
+2. **Writing**: The Writer agent generates detailed content from the outline.
+3. **Editing**: The Editor agent refines the content for quality and coherence.
 
-**Features:**
+The workflow is managed by the `ContentGenerationCrew` class, which orchestrates the agents and tasks.
 
-- Text-to-image generation using Google Gemini
-- Support for modifying existing images using references
-- Robust error handling with automatic retries
-- Optional file-based cache persistence
-- Improved artifact ID extraction from queries
+## File Structure
 
-**Limitations:**
+- `__main__.py`: Entry point for the application.
+- `agent.py`: Defines the `ContentGenerationCrew` and its agents.
+- `task_manager.py`: Manages task execution.
+- `crew_execution.json`: Logs detailed execution steps.
+- `outline.txt`, `draft.txt`, `final.txt`: Intermediate and final outputs of the content generation process.
 
-- No true streaming (CrewAI doesn't natively support it)
-- Limited agent interactions (no multi-turn conversations)
+## Limitations
+
+- No support for streaming responses.
+- Limited to single-turn interactions.
 
 ## Learn More
 
-- [A2A Protocol Documentation](https://google.github.io/A2A/#/documentation)
 - [CrewAI Documentation](https://docs.crewai.com/introduction)
+- [A2A Protocol Documentation](https://google.github.io/A2A/#/documentation)
 - [Google Gemini API](https://ai.google.dev/gemini-api)
-# ai-heroes-demo
