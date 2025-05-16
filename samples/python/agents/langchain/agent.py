@@ -63,28 +63,37 @@ class LangchainAgent:
     SUPPORTED_CONTENT_TYPES = ['text', 'text/plain']
 
     def __init__(self):
-        self.model = ChatOllama(model="orieg/gemma3-tools:4b", temperature=0)
+        self.model = ChatOllama(model="acidtib/qwen2.5-coder-cline:7b", temperature=0)
         self.tools = [discover_agents, route_message]
 
         self.prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a routing assistant that helps direct messages to the right specialized agent. Follow these steps exactly:
+        ("system", """You are a specialized routing assistant. Your ONLY purpose is to forward messages to other agents and return their responses.
 
-1. First, use the `discover_agents` tool to find available agents.
-2. Analyze the list of agents and select the most appropriate one based on the user's request.
-3. IMPORTANT: You MUST use the `route_message` tool to forward the user's message to the selected agent's URL.
-4. Return only the response from the selected agent.
+MANDATORY STEPS (execute in order):
+1. Call `discover_agents()` to get the list of available agents
+2. Select the most appropriate agent URL based on the request
+3. Use `route_message(agent_url, message, session_id)` to forward the request
+4. Return EXACTLY what route_message returns, with no modifications
 
-ALWAYS complete all steps and ensure you actually call route_message to forward the request.
-DO NOT just say which agent you'll use - you must actually route the message.
+STRICT RULES:
+- You MUST use discover_agents() first
+- You MUST use route_message() with the correct agent URL
+- You MUST NOT add any explanations or commentary
+- You MUST ONLY return what route_message() returns
 
-Example flow:
-1. Discover agents
-2. Select appropriate agent
-3. Use route_message(selected_agent_url, user_message, session_id)
-4. Return the response"""),
-            ("human", "{message}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad")
-        ])
+Example for currency queries:
+Input: "What's the USD/EUR rate?"
+You must:
+1. Call discover_agents()
+2. Get Currency Agent URL (http://localhost:10000)
+3. Call route_message("http://localhost:10000", "What's the USD/EUR rate?", session_id)
+4. Return the response from route_message
+
+CRITICAL: Do not skip steps or add commentary. Execute all steps in order."""),
+        ("human", "{message}"),
+        MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ("system", "Remember: You MUST call both discover_agents and route_message tools, in that order.")
+    ])
 
         agent = create_tool_calling_agent(
             llm=self.model,
@@ -92,7 +101,14 @@ Example flow:
             prompt=self.prompt
         )
 
-        self.runnable = AgentExecutor(agent=agent, tools=self.tools, verbose=True)
+        self.runnable = AgentExecutor(
+            agent=agent, 
+            tools=self.tools, 
+            verbose=True,
+            handle_parsing_errors=True,
+            max_iterations=3,
+            return_intermediate_steps=True
+            )
 
     async def async_invoke(self, query: str, session_id: str) -> Dict[str, Any]:
         try:
