@@ -52,7 +52,7 @@ async def cli(
         )
         push_notification_listener.start()
 
-    client = A2AClient(agent_card=card)
+    client = A2AClient(agent_card=card, timeout=300.0)  # 5 minutes timeout
     if session == 0:
         sessionId = uuid4().hex
     else:
