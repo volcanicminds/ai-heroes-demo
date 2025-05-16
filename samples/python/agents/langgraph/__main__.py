@@ -26,19 +26,23 @@ logger = logging.getLogger(__name__)
 @click.option('--host', 'host', default='localhost')
 @click.option('--port', 'port', default=10000)
 def main(host, port):
-    """Starts the Currency Agent server."""
+    """Starts the Calculator Agent server."""
     try:
         capabilities = AgentCapabilities(streaming=True, pushNotifications=True)
         skill = AgentSkill(
-            id='convert_currency',
-            name='Currency Exchange Rates Tool',
-            description='Helps with exchange values between various currencies',
-            tags=['currency conversion', 'currency exchange'],
-            examples=['What is exchange rate between USD and GBP?'],
+            id='calculate',
+            name='Calculator Tool',
+            description='Performs mathematical calculations using Python math functions',
+            tags=['calculator', 'math', 'arithmetic'],
+            examples=[
+                'What is 2 + 2?',
+                'Calculate sin(30) * pi',
+                'What is the square root of 16?'
+            ],
         )
         agent_card = AgentCard(
-            name='Currency Agent',
-            description='Helps with exchange rates for currencies',
+            name='Calculator Agent',
+            description='Helps with mathematical calculations',
             url=f'http://{host}:{port}/',
             version='1.0.0',
             defaultInputModes=CurrencyAgent.SUPPORTED_CONTENT_TYPES,

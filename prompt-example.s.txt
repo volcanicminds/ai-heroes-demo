@@ -1,2 +1,2 @@
-give me the current exchange from USD TO EUR in date 14/05/2025
+calculate 12 * 12 / 78 and then do the square root
 create an articole about cows producing more milk while listening to classical music
