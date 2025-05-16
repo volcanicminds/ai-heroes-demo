@@ -29,9 +29,17 @@ def calculate(expression: str) -> dict:
                    - "sin(pi/2)"
                    
     Returns:
-        A dictionary containing the result or an error message.
+        A dictionary containing the formatted result or error message.
     """
     logger.info(f"[Calculator] Received expression to evaluate: {expression}")
+    
+    # Sanitize the input by removing any unexpected characters
+    valid_chars = set('0123456789.()*/+-[] abcdefghijklmnopqrstuvwxyz')
+    if not all(c.lower() in valid_chars for c in expression):
+        error_msg = f'Invalid characters in expression: {expression}'
+        logger.error(f"[Calculator] {error_msg}")
+        return {'error': error_msg, 'expression': expression}
+    
     try:
         # Create a safe dict with only math functions we want to allow
         safe_dict = {
@@ -53,14 +61,19 @@ def calculate(expression: str) -> dict:
         logger.debug(f"[Calculator] Available functions: {list(safe_dict.keys())}")
         
         # Evaluate the expression in a restricted environment
-        logger.info(f"[Calculator] Evaluating expression with safe_dict...")
-        result = eval(expression, {"__builtins__": {}}, safe_dict)
+        logger.info(f"[Calculator] Evaluating expression: '{expression}' with safe_dict...")
+        result = eval(expression.strip(), {"__builtins__": {}}, safe_dict)
         logger.info(f"[Calculator] Evaluation successful, result: {result}")
-        return {'result': result}
+        
+        # Format the result to a reasonable number of decimal places if it's a float
+        if isinstance(result, float):
+            result = round(result, 6)
+            
+        return {'result': result, 'expression': expression}
     except Exception as e:
         error_msg = f'Calculation error: {str(e)}'
         logger.error(f"[Calculator] {error_msg}")
-        return {'error': error_msg}
+        return {'error': error_msg, 'expression': expression}
 
 
 class ResponseFormat(BaseModel):
@@ -74,18 +87,27 @@ class CurrencyAgent:
     SYSTEM_INSTRUCTION = (
         'You are a specialized calculator assistant. '
         "Your sole purpose is to use the 'calculate' tool to solve mathematical problems. "
-        'IMPORTANT: You must format the input expression for the calculate tool as a valid Python expression. For example:\n'
-        '- User asks: "what is 12 times 12?" → Use: calculate("12 * 12")\n'
-        '- User asks: "calculate square root of 16" → Use: calculate("sqrt(16)")\n'
-        '- User asks: "what is sine of pi/2?" → Use: calculate("sin(pi/2)")\n'
-        'Always make sure to format the expression as a valid Python expression that can be evaluated by eval().\n'
-        'Do not include natural language in the expression passed to calculate().\n'
-        'If the user\'s request is unclear, ask for clarification.\n'
+        'IMPORTANT: You must follow these rules exactly:\n'
+        '1. Format the input expression for the calculate tool as a valid Python expression so it could be'
+        'evaluated by a code like this \"result = eval(expression)\":\n'
+        '   - User asks: "what is 12 times 12?" → Use: calculate("12 * 12")\n'
+        '   - User asks: "calculate square root of 16" → Use: calculate("sqrt(16)")\n'
+        '   - User asks: "what is sine of pi/2?" → Use: calculate("sin(pi/2)")\n'
+        '2. When you get a result from calculate(), you MUST:\n'
+        '   - Set status to "completed"\n'
+        '   - Only reply with the final result\n'
+        '   - In your reply there must be no other info apart the numeric result\n'
+        '   - Include the result in your response message\n'
+        '3. Only set status to "input_required" if the user request is unclear\n'
+        '4. Set status to "error" if calculate() returns an error\n'
         'Available functions: abs, round, pow, sum, max, min, sqrt, sin, cos, tan\n'
         'Available constants: pi, e\n'
-        'Set response status to input_required if the user needs to provide more information.\n'
-        'Set response status to error if there is an error while processing the calculation.\n'
-        'Set response status to completed if the calculation is complete.'
+        'Example of complete response if the user request is "what is 12 times 12?":\n'
+        '{\n'
+        '  status: "completed",\n'
+        '  message: "144"\n'
+        '}' \
+        'CRITICAL: Do not include any other text in your response, just the numeric value of the calculation.\n'
     )
 
     def __init__(self):
@@ -149,21 +171,13 @@ class CurrencyAgent:
         if structured_response and isinstance(
             structured_response, ResponseFormat
         ):
-            if (
-                structured_response.status == 'input_required'
-                or structured_response.status == 'error'
-            ):
-                return {
-                    'is_task_complete': False,
-                    'require_user_input': True,
-                    'content': structured_response.message,
-                }
-            if structured_response.status == 'completed':
-                return {
-                    'is_task_complete': True,
-                    'require_user_input': False,
-                    'content': structured_response.message,
-                }
+            response = {
+                'is_task_complete': structured_response.status == 'completed',
+                'require_user_input': structured_response.status in ['input_required', 'error'],
+                'content': structured_response.message,
+            }
+            logger.info(f"[Calculator Agent] Formatted response: {response}")
+            return response
 
         error_msg = 'We are unable to process your request at the moment. Please try again.'
         logger.error(f"[Calculator Agent] Error getting response: {error_msg}")
