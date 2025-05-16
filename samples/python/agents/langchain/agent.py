@@ -67,11 +67,21 @@ class LangchainAgent:
         self.tools = [discover_agents, route_message]
 
         self.prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a routing assistant. Your job is to:
-1. Use the `discover_agents` tool to find available agents.
-2. Based on the user's message, choose the most appropriate agent.
-3. Use the `route_message` tool to send the message to the selected agent.
-Always start by discovering agents unless the message specifically mentions that step."""),
+            ("system", """You are a routing assistant that helps direct messages to the right specialized agent. Follow these steps exactly:
+
+1. First, use the `discover_agents` tool to find available agents.
+2. Analyze the list of agents and select the most appropriate one based on the user's request.
+3. IMPORTANT: You MUST use the `route_message` tool to forward the user's message to the selected agent's URL.
+4. Return only the response from the selected agent.
+
+ALWAYS complete all steps and ensure you actually call route_message to forward the request.
+DO NOT just say which agent you'll use - you must actually route the message.
+
+Example flow:
+1. Discover agents
+2. Select appropriate agent
+3. Use route_message(selected_agent_url, user_message, session_id)
+4. Return the response"""),
             ("human", "{message}"),
             MessagesPlaceholder(variable_name="agent_scratchpad")
         ])
