@@ -1,2 +1,2 @@
 calculate 12 * 12 / 78 and then do the square root
-create an articole about cows producing more milk while listening to classical music
+create an article about cows producing more milk while listening to classical music

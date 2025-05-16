@@ -4,7 +4,7 @@ import logging
 
 from collections.abc import AsyncIterable
 
-from agent import TextGenerationAgent
+from agent import ContentGenerationCrew
 from common.server import utils
 from common.server.task_manager import InMemoryTaskManager
 from common.types import (
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class AgentTaskManager(InMemoryTaskManager):
     """Agent Task Manager, handles task routing and response packing."""
 
-    def __init__(self, agent: TextGenerationAgent):
+    def __init__(self, agent: ContentGenerationCrew):
         super().__init__()
         self.agent = agent
 
@@ -43,12 +43,12 @@ class AgentTaskManager(InMemoryTaskManager):
         ## only support text output at the moment
         if not utils.are_modalities_compatible(
             request.params.acceptedOutputModes,
-            TextGenerationAgent.SUPPORTED_CONTENT_TYPES,
+            ContentGenerationCrew.SUPPORTED_CONTENT_TYPES,
         ):
             logger.warning(
                 'Unsupported output mode. Received %s, Support %s',
                 request.params.acceptedOutputModes,
-                TextGenerationAgent.SUPPORTED_CONTENT_TYPES,
+                ContentGenerationCrew.SUPPORTED_CONTENT_TYPES,
             )
             return utils.new_incompatible_types_error(request.id)
 

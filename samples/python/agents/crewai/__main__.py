@@ -8,7 +8,7 @@ import logging
 
 import click
 
-from agent import TextGenerationAgent
+from agent import ContentGenerationCrew
 from common.server import A2AServer
 from common.types import (
     AgentCapabilities,
@@ -30,35 +30,41 @@ logger = logging.getLogger(__name__)
 @click.option('--host', 'host', default='localhost')
 @click.option('--port', 'port', default=10001)
 def main(host, port):
-    """Entry point for the A2A + CrewAI Text generation sample."""
+    """Entry point for the A2A + CrewAI Content generation sample."""
     try:
         capabilities = AgentCapabilities(streaming=False)
         skill = AgentSkill(
-            id='text_generator',
-            name='Text Generator',
+            id='content_generator',
+            name='Content Generator',
             description=(
-                'It generates text based on the prompt.'
+                'A collaborative crew of AI agents that work together to plan,'
+                ' write, and edit high-quality content based on your prompt.'
             ),
-            tags=['generate text'],
-            examples=['Generate a text based on the prompt'],
+            tags=['generate content', 'planning', 'writing', 'editing'],
+            examples=[
+                'Write an article about AI and its impact on society',
+                'Create technical documentation for a new feature',
+                'Generate a blog post about machine learning'
+            ],
         )
 
         agent_card = AgentCard(
-            name='Text Generator Agent',
+            name='Content Generation Crew',
             description=(
-                'It generates text based on the prompt.'
+                'A specialized team of AI agents that collaborate to create'
+                ' high-quality content through planning, writing, and editing.'
             ),
             url=f'http://{host}:{port}/',
             version='1.0.0',
-            defaultInputModes=TextGenerationAgent.SUPPORTED_CONTENT_TYPES,
-            defaultOutputModes=TextGenerationAgent.SUPPORTED_CONTENT_TYPES,
+            defaultInputModes=ContentGenerationCrew.SUPPORTED_CONTENT_TYPES,
+            defaultOutputModes=ContentGenerationCrew.SUPPORTED_CONTENT_TYPES,
             capabilities=capabilities,
             skills=[skill],
         )
 
         server = A2AServer(
             agent_card=agent_card,
-            task_manager=AgentTaskManager(agent=TextGenerationAgent()),
+            task_manager=AgentTaskManager(agent=ContentGenerationCrew()),
             host=host,
             port=port,
         )

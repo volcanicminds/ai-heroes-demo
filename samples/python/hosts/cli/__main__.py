@@ -13,7 +13,7 @@ from common.utils.push_notification_auth import PushNotificationReceiverAuth
 
 
 @click.command()
-@click.option('--agent', default='http://localhost:10002')
+@click.option('--agent', default='http://localhost:10001')
 @click.option('--session', default=0)
 @click.option('--history', default=False)
 @click.option('--use_push_notifications', default=False)
