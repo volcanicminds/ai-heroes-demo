@@ -4,7 +4,7 @@ import traceback
 
 from collections.abc import AsyncIterable
 
-from agents.langgraph.agent import CurrencyAgent
+from agents.langgraph.agent import CalculationAgent
 from common.server import utils
 from common.server.task_manager import InMemoryTaskManager
 from common.types import (
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 class AgentTaskManager(InMemoryTaskManager):
     def __init__(
         self,
-        agent: CurrencyAgent,
+        agent: CalculationAgent,
         notification_sender_auth: PushNotificationSenderAuth,
     ):
         super().__init__()
@@ -108,12 +108,12 @@ class AgentTaskManager(InMemoryTaskManager):
         task_send_params: TaskSendParams = request.params
         if not utils.are_modalities_compatible(
             task_send_params.acceptedOutputModes,
-            CurrencyAgent.SUPPORTED_CONTENT_TYPES,
+            CalculationAgent.SUPPORTED_CONTENT_TYPES,
         ):
             logger.warning(
                 'Unsupported output mode. Received %s, Support %s',
                 task_send_params.acceptedOutputModes,
-                CurrencyAgent.SUPPORTED_CONTENT_TYPES,
+                CalculationAgent.SUPPORTED_CONTENT_TYPES,
             )
             return utils.new_incompatible_types_error(request.id)
 

@@ -3,7 +3,7 @@ import os
 
 import click
 
-from agents.langgraph.agent import CurrencyAgent
+from agents.langgraph.agent import CalculationAgent
 from agents.langgraph.task_manager import AgentTaskManager
 from common.server import A2AServer
 from common.types import (
@@ -45,8 +45,8 @@ def main(host, port):
             description='Helps with mathematical calculations',
             url=f'http://{host}:{port}/',
             version='1.0.0',
-            defaultInputModes=CurrencyAgent.SUPPORTED_CONTENT_TYPES,
-            defaultOutputModes=CurrencyAgent.SUPPORTED_CONTENT_TYPES,
+            defaultInputModes=CalculationAgent.SUPPORTED_CONTENT_TYPES,
+            defaultOutputModes=CalculationAgent.SUPPORTED_CONTENT_TYPES,
             capabilities=capabilities,
             skills=[skill],
         )
@@ -56,7 +56,7 @@ def main(host, port):
         server = A2AServer(
             agent_card=agent_card,
             task_manager=AgentTaskManager(
-                agent=CurrencyAgent(),
+                agent=CalculationAgent(),
                 notification_sender_auth=notification_sender_auth,
             ),
             host=host,

@@ -1,7 +1,8 @@
 from collections.abc import AsyncIterable
 from typing import Any, Literal
-import math
 import logging
+import math
+import re
 
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import tool
@@ -27,11 +28,34 @@ def calculate(expression: str) -> dict:
                    - "12 * 12"
                    - "sqrt(16)"
                    - "sin(pi/2)"
+                   - "sqrt((12 * 12) / 78)"
                    
     Returns:
         A dictionary containing the formatted result or error message.
     """
     logger.info(f"[Calculator] Received expression to evaluate: {expression}")
+    
+    # Clean up the input expression
+    expression = expression.strip()
+    
+    # Handle natural language expressions
+    expression = (expression.lower()
+                 .replace('calculate', '')
+                 .replace('what is', '')
+                 .replace('the square root of', 'sqrt')
+                 .replace('square root', 'sqrt')
+                 .replace('the result of', '')
+                 .strip())
+
+    # Remove extra spaces around operators
+    expression = re.sub(r'\s*([+\-*/])\s*', r'\1', expression)
+    
+    # Handle "sqrt" at the end of expression
+    if expression.endswith('sqrt'):
+        expression = 'sqrt(' + expression[:-4].strip() + ')'
+    # Handle "sqrt" anywhere else
+    elif 'sqrt' in expression and not 'sqrt(' in expression:
+        expression = f"sqrt({expression.replace('sqrt', '')})"
     
     # Sanitize the input by removing any unexpected characters
     valid_chars = set('0123456789.()*/+-[] abcdefghijklmnopqrstuvwxyz')
@@ -77,44 +101,103 @@ def calculate(expression: str) -> dict:
 
 
 class ResponseFormat(BaseModel):
-    """Respond to the user in this format."""
+    """Response format that ensures only numeric results are returned."""
 
-    status: Literal['input_required', 'completed', 'error'] = 'input_required'
+    status: Literal['input_required', 'completed', 'error'] = 'completed'
     message: str
+    
+    @classmethod
+    def from_calculation(cls, calc_result: dict) -> 'ResponseFormat':
+        """Create a response containing only the numeric result."""
+        logger.info(f"[ResponseFormat] Processing calculation result: {calc_result}")
+        
+        if 'error' in calc_result:
+            logger.error(f"[ResponseFormat] Error in calculation: {calc_result['error']}")
+            return cls(
+                status='error',
+                message=calc_result['error']
+            )
+        
+        # Extract the numeric result
+        result = calc_result['result']
+        logger.debug(f"[ResponseFormat] Raw result type: {type(result)}, value: {result}")
+        
+        # Format numeric values consistently
+        if isinstance(result, (int, float)):
+            # Format floats with 6 decimal places, strip trailing zeros
+            formatted_result = f"{float(result):.6f}".rstrip('0').rstrip('.')
+            logger.debug(f"[ResponseFormat] Formatted result: {formatted_result}")
+            # Extract just the number from any potential text
+            numeric_match = re.search(r'-?\d*\.?\d+(?:e[-+]?\d+)?', formatted_result)
+            if numeric_match:
+                numeric_value = numeric_match.group()
+                return cls(
+                    status='completed',
+                    message=numeric_value
+                )
+            else:
+                logger.error(f"[ResponseFormat] No numeric value found in result")
+                return cls(
+                    status='error',
+                    message='Invalid numeric format'
+                )
+        else:
+            logger.error(f"[ResponseFormat] Invalid result type: {type(result)}")
+            return cls(
+                status='error',
+                message='Invalid result type'
+            )
+
+    def model_dump(self) -> dict:
+        """Return the response data with properly formatted numeric values."""
+        logger.debug(f"[ResponseFormat] model_dump called on message: {self.message}")
+        data = super().model_dump()
+        
+        # No additional formatting needed since from_calculation already formats correctly
+        logger.debug(f"[ResponseFormat] Final output: {data}")
+        return data
 
 
-class CurrencyAgent:
-    SYSTEM_INSTRUCTION = (
-        'You are a specialized calculator assistant. '
-        "Your sole purpose is to use the 'calculate' tool to solve mathematical problems. "
-        'IMPORTANT: You must follow these rules exactly:\n'
-        '1. Format the input expression for the calculate tool as a valid Python expression so it could be'
-        'evaluated by a code like this \"result = eval(expression)\":\n'
-        '   - User asks: "what is 12 times 12?" → Use: calculate("12 * 12")\n'
-        '   - User asks: "calculate square root of 16" → Use: calculate("sqrt(16)")\n'
-        '   - User asks: "what is sine of pi/2?" → Use: calculate("sin(pi/2)")\n'
-        '2. When you get a result from calculate(), you MUST:\n'
-        '   - Set status to "completed"\n'
-        '   - Only reply with the final result\n'
-        '   - In your reply there must be no other info apart the numeric result\n'
-        '   - Include the result in your response message\n'
-        '3. Only set status to "input_required" if the user request is unclear\n'
-        '4. Set status to "error" if calculate() returns an error\n'
-        'Available functions: abs, round, pow, sum, max, min, sqrt, sin, cos, tan\n'
-        'Available constants: pi, e\n'
-        'Example of complete response if the user request is "what is 12 times 12?":\n'
-        '{\n'
-        '  status: "completed",\n'
-        '  message: "144"\n'
-        '}' \
-        'CRITICAL: Do not include any other text in your response, just the numeric value of the calculation.\n'
-    )
+class CalculationAgent:
+    SYSTEM_INSTRUCTION = """You are a calculator agent that MUST follow these rules EXACTLY:
+
+1. ALWAYS use the calculate() tool for ALL calculations
+2. Return ONLY THE NUMBER - nothing else
+3. NO words before or after the number
+4. NO explanations
+5. NO units
+6. NO "The answer is" or similar phrases
+7. For complex expressions, combine them into a SINGLE calculate() call
+
+Input: "what is 5 plus 3"
+Response: 8
+
+Input: "calculate the square root of 16"
+Response: 4
+
+Input: "what is (10 * 5) / 2"
+Response: 25
+
+Input: "tell me the result of sin(pi/2)"
+Response: 1
+
+Input: "what's sqrt((12 * 12) / 78)"
+Response: 1.358732
+
+CRITICAL: Your response must contain ONLY the number - no other characters or text."""
 
     def __init__(self):
-        # Use Ollama's llama2 model via LangChain Ollama integration
+         # Use Ollama's llama2 model via LangChain Ollama integration
         logger.info("[Calculator Agent] Initializing with model acidtib/qwen2.5-coder-cline:7b")
-        self.model = ChatOllama(model="acidtib/qwen2.5-coder-cline:7b", temperature=0)
+        self.model = ChatOllama(
+            model="llama3.2:latest", 
+            temperature=0,
+            system=self.SYSTEM_INSTRUCTION  # Explicitly set system message
+        )
         self.tools = [calculate]
+
+        # Log system instruction to verify it's being used
+        logger.info(f"[Calculator Agent] Using system instruction:\n{self.SYSTEM_INSTRUCTION}")
 
         self.graph = create_react_agent(
             self.model,
