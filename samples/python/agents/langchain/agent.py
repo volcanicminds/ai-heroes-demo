@@ -1,8 +1,9 @@
 import logging
 import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 import asyncio
 from collections.abc import AsyncIterable
+import httpx
 
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -19,6 +20,7 @@ logging.getLogger("langchain").setLevel(logging.WARNING)
 logger = logging.getLogger("agent")
 
 AGENT_URLS = ["http://localhost:10000", "http://localhost:10001"]
+DEFAULT_TIMEOUT: Union[float, tuple[float, float, float, float], None] = 120.0  # 2 minutes timeout
 
 @tool
 def discover_agents() -> List[Dict[str, Any]]:
@@ -47,7 +49,7 @@ async def route_message(agent_url: str, message: str, session_id: str) -> str:
         session_id: The session ID for tracking the conversation
     """
     try:
-        client = A2AClient(url=agent_url)
+        client = A2AClient(url=agent_url, timeout=DEFAULT_TIMEOUT)
         task_id = str(uuid.uuid4())
         request = TaskSendParams(
             id=task_id,
@@ -55,8 +57,22 @@ async def route_message(agent_url: str, message: str, session_id: str) -> str:
             message=Message(role="user", parts=[TextPart(text=message)]),
             acceptedOutputModes=["text", "text/plain"]
         )
-        logger.info(f"Sending task to agent at {agent_url}")
-        response = await client.send_task(request)
+        logger.info(f"Sending task to agent at {agent_url} with timeout {DEFAULT_TIMEOUT}s")
+        
+        try:
+            response = await client.send_task(request)
+        except httpx.ReadTimeout:
+            error_msg = f"Request to {agent_url} timed out after {DEFAULT_TIMEOUT} seconds"
+            logger.error(error_msg)
+            return f"{error_msg}. The agent might be busy or not responding. Try increasing the timeout or try again later."
+        except httpx.ConnectError:
+            error_msg = f"Could not connect to {agent_url}"
+            logger.error(error_msg)
+            return f"{error_msg}. Please check if the agent is running and accessible."
+        except httpx.HTTPError as e:
+            error_msg = f"HTTP error occurred while connecting to {agent_url}: {e}"
+            logger.error(error_msg)
+            return f"Error communicating with agent: {str(e)}"
         
         # Enhanced response handling
         if response and hasattr(response, 'result'):
@@ -86,8 +102,10 @@ async def route_message(agent_url: str, message: str, session_id: str) -> str:
             
         return "No response received from agent"
     except Exception as e:
-        logger.error(f"Failed to route message: {e}")
-        return f"Routing failed: {str(e)}"
+        import traceback
+        logger.error(f"Failed to route message: {str(e)}")
+        logger.error(f"Traceback:\n{traceback.format_exc()}")
+        return f"Error processing agent response: {str(e)}. Check logs for details."
 
 class LangchainAgent:
     SUPPORTED_CONTENT_TYPES = ['text', 'text/plain']
