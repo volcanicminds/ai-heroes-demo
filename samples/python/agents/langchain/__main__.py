@@ -8,7 +8,7 @@ import logging
 
 import click
 
-from agent import TextGenerationAgent
+from agent import LangchainAgent
 from common.server import A2AServer
 from common.types import (
     AgentCapabilities,
@@ -28,37 +28,36 @@ logger = logging.getLogger(__name__)
 
 @click.command()
 @click.option('--host', 'host', default='localhost')
-@click.option('--port', 'port', default=10001)
+@click.option('--port', 'port', default=10002) # Use a different default port
 def main(host, port):
-    """Entry point for the A2A + CrewAI Text generation sample."""
+    """Starts the Langchain Agent server."""
     try:
-        capabilities = AgentCapabilities(streaming=False)
+        capabilities = AgentCapabilities(streaming=False, pushNotifications=False) # Start without streaming and push notifications
         skill = AgentSkill(
-            id='text_generator',
-            name='Text Generator',
-            description=(
-                'It generates text based on the prompt.'
-            ),
-            tags=['generate text'],
-            examples=['Generate a text based on the prompt'],
+            id='langchain_agent',
+            name='Langchain Agent',
+            description='An agent that can discover and route messages to other agents.',
+            tags=['langchain', 'multi-agent', 'routing'],
+            examples=['Discover agents', 'Send this message to the text generator agent: generate a short story about a dog'],
         )
-
         agent_card = AgentCard(
-            name='Text Generator Agent',
-            description=(
-                'It generates text based on the prompt.'
-            ),
+            name='Langchain Router Agent',
+            description='An agent that can discover and route messages to other agents.',
             url=f'http://{host}:{port}/',
             version='1.0.0',
-            defaultInputModes=TextGenerationAgent.SUPPORTED_CONTENT_TYPES,
-            defaultOutputModes=TextGenerationAgent.SUPPORTED_CONTENT_TYPES,
+            defaultInputModes=LangchainAgent.SUPPORTED_CONTENT_TYPES,
+            defaultOutputModes=LangchainAgent.SUPPORTED_CONTENT_TYPES,
             capabilities=capabilities,
             skills=[skill],
         )
 
+        logger.info("AgentCard created.")
+
         server = A2AServer(
             agent_card=agent_card,
-            task_manager=AgentTaskManager(agent=TextGenerationAgent()),
+            task_manager=AgentTaskManager(
+                agent=LangchainAgent(),
+            ),
             host=host,
             port=port,
         )

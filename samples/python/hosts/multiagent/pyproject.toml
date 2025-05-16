@@ -16,6 +16,9 @@ packages = ["."]
 [tool.uv.sources]
 a2a-samples = { workspace = true }
 
+[project.scripts]
+multiagent-client = "samples.python.hosts.multiagent.__main__:main_async"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

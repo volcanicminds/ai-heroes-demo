@@ -115,18 +115,50 @@ class InMemoryTaskManager(TaskManager):
                 return CancelTaskResponse(
                     id=request.id, error=TaskNotFoundError()
                 )
-
-        return CancelTaskResponse(id=request.id, error=TaskNotCancelableError())
+            # If task is found but not cancelable, return a CancelTaskResponse with the appropriate error
+            return CancelTaskResponse(id=request.id, error=TaskNotCancelableError())
 
     @abstractmethod
     async def on_send_task(self, request: SendTaskRequest) -> SendTaskResponse:
         pass
 
-    @abstractmethod
+    async def on_send_task(self, request: SendTaskRequest) -> SendTaskResponse:
+        logger.info(f'Sending task {request.params.id}')
+        task_send_params: TaskSendParams = request.params
+
+        try:
+            task = await self.upsert_task(task_send_params)
+        except Exception as e:
+            logger.error(f'Error while upserting task: {e}')
+            return JSONRPCResponse(
+                id=request.id,
+                error=InternalError(
+                    message='An error occurred while sending the task'
+                ),
+            )
+
+        return SendTaskResponse(id=request.id, result=task)
+
     async def on_send_task_subscribe(
         self, request: SendTaskStreamingRequest
     ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
-        pass
+        logger.info(f'Subscribing to task {request.params.id}')
+        task_send_params: TaskSendParams = request.params
+
+        try:
+            await self.upsert_task(task_send_params)
+            sse_event_queue = await self.setup_sse_consumer(task_send_params.id)
+            return self.dequeue_events_for_sse(
+                request.id, task_send_params.id, sse_event_queue
+            )
+        except Exception as e:
+            logger.error(f'Error while setting up SSE consumer: {e}')
+            return JSONRPCResponse(
+                id=request.id,
+                error=InternalError(
+                    message='An error occurred while setting up streaming'
+                ),
+            )
 
     async def set_push_notification_info(
         self, task_id: str, notification_config: PushNotificationConfig

@@ -71,38 +71,43 @@ class A2AServer:
         try:
             body = await request.json()
             json_rpc_request = A2ARequest.validate_python(body)
+            logger.info(f"[_process_request] Validated JSON RPC request type: {type(json_rpc_request)}")
 
-            if isinstance(json_rpc_request, GetTaskRequest):
-                result = await self.task_manager.on_get_task(json_rpc_request)
-            elif isinstance(json_rpc_request, SendTaskRequest):
-                result = await self.task_manager.on_send_task(json_rpc_request)
-            elif isinstance(json_rpc_request, SendTaskStreamingRequest):
-                result = await self.task_manager.on_send_task_subscribe(
-                    json_rpc_request
-                )
-            elif isinstance(json_rpc_request, CancelTaskRequest):
-                result = await self.task_manager.on_cancel_task(
-                    json_rpc_request
-                )
-            elif isinstance(json_rpc_request, SetTaskPushNotificationRequest):
-                result = await self.task_manager.on_set_task_push_notification(
-                    json_rpc_request
-                )
-            elif isinstance(json_rpc_request, GetTaskPushNotificationRequest):
-                result = await self.task_manager.on_get_task_push_notification(
-                    json_rpc_request
-                )
-            elif isinstance(json_rpc_request, TaskResubscriptionRequest):
-                result = await self.task_manager.on_resubscribe_to_task(
-                    json_rpc_request
-                )
-            else:
-                logger.warning(
-                    f'Unexpected request type: {type(json_rpc_request)}'
-                )
-                raise ValueError(f'Unexpected request type: {type(request)}')
+            try:
+                if isinstance(json_rpc_request, GetTaskRequest):
+                    result = await self.task_manager.on_get_task(json_rpc_request)
+                elif isinstance(json_rpc_request, SendTaskRequest):
+                    result = await self.task_manager.on_send_task(json_rpc_request)
+                elif isinstance(json_rpc_request, SendTaskStreamingRequest):
+                    result = await self.task_manager.on_send_task_subscribe(
+                        json_rpc_request
+                    )
+                elif isinstance(json_rpc_request, CancelTaskRequest):
+                    result = await self.task_manager.on_cancel_task(
+                        json_rpc_request
+                    )
+                elif isinstance(json_rpc_request, SetTaskPushNotificationRequest):
+                    result = await self.task_manager.on_set_task_push_notification(
+                        json_rpc_request
+                    )
+                elif isinstance(json_rpc_request, GetTaskPushNotificationRequest):
+                    result = await self.task_manager.on_get_task_push_notification(
+                        json_rpc_request
+                    )
+                elif isinstance(json_rpc_request, TaskResubscriptionRequest):
+                    result = await self.task_manager.on_resubscribe_to_task(
+                        json_rpc_request
+                    )
+                else:
+                    logger.warning(
+                        f'Unexpected request type: {type(json_rpc_request)}'
+                    )
+                    raise ValueError(f'Unexpected request type: {type(request)}')
 
-            return self._create_response(result)
+                return self._create_response(result)
+            except Exception as e:
+                logger.error(f'Exception during request processing: {e}')
+                raise e # Re-raise the exception to be caught by the outer handler
 
         except Exception as e:
             return self._handle_exception(e)

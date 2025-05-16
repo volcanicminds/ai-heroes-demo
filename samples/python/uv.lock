@@ -9,11 +9,37 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "a2a-sample-agent-langchain",
     "a2a-sample-agent-langgraph",
     "a2a-sample-client-cli",
     "a2a-sample-client-multiagent",
     "a2a-samples",
     "a2a-samples-image-gen",
+]
+
+[[package]]
+name = "a2a-sample-agent-langchain"
+version = "0.1.0"
+source = { editable = "agents/langchain" }
+dependencies = [
+    { name = "a2a-samples" },
+    { name = "click" },
+    { name = "httpx" },
+    { name = "langchain" },
+    { name = "langchain-core" },
+    { name = "langchain-ollama" },
+    { name = "python-dotenv" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "a2a-samples", editable = "." },
+    { name = "click", specifier = ">=8.1.8" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "langchain", specifier = ">=0.2.0" },
+    { name = "langchain-core", specifier = ">=0.2.0" },
+    { name = "langchain-ollama", specifier = ">=0.3.2" },
+    { name = "python-dotenv", specifier = ">=1.1.0" },
 ]
 
 [[package]]
