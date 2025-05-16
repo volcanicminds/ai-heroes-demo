@@ -197,12 +197,30 @@ async def completeTask(
         taskResult = await client.send_task(payload)
         # Clear loading animation (replace with spaces)
         print('\r' + ' ' * 20, end='')
+        
         try:
-            full_text = ""
-            for part in taskResult.result.status.message.parts:
-                full_text += part.text
-            print(f'\n--- START ---\n{full_text}\n--- END ---')
-        except:
+            # First try to get text from status message
+            if hasattr(taskResult.result.status, 'message') and taskResult.result.status.message:
+                full_text = ""
+                for part in taskResult.result.status.message.parts:
+                    if hasattr(part, 'text'):
+                        full_text += part.text
+                if full_text:
+                    print(full_text)
+                    return True
+
+            # Then try to get text from artifacts
+            if hasattr(taskResult.result, 'artifacts') and taskResult.result.artifacts:
+                for artifact in taskResult.result.artifacts:
+                    if hasattr(artifact, 'parts'):
+                        for part in artifact.parts:
+                            if hasattr(part, 'text'):
+                                print(part.text)
+                return True
+
+            # If no text content found, fall back to printing full JSON
+            print(f'\n{taskResult.model_dump_json(exclude_none=True)}')
+        except Exception as e:
             print(f'\n{taskResult.model_dump_json(exclude_none=True)}')
 
     ## if the result is that more input is required, loop again.
