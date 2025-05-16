@@ -47,8 +47,7 @@ async def route_message(agent_url: str, message: str, session_id: str) -> str:
         session_id: The session ID for tracking the conversation
     """
     try:
-        # Create client with the URL parameter
-        client = A2AClient(url=agent_url)  # Changed to use url parameter
+        client = A2AClient(url=agent_url)
         task_id = str(uuid.uuid4())
         request = TaskSendParams(
             id=task_id,
@@ -59,8 +58,32 @@ async def route_message(agent_url: str, message: str, session_id: str) -> str:
         logger.info(f"Sending task to agent at {agent_url}")
         response = await client.send_task(request)
         
-        if response and response.task and response.task.outputs:
-            return response.task.outputs[0].text
+        # Enhanced response handling
+        if response and hasattr(response, 'result'):
+            result = response.result
+            
+            # Check if there's a status with a message
+            if hasattr(result, 'status') and hasattr(result.status, 'message'):
+                if hasattr(result.status.message, 'parts'):
+                    for part in result.status.message.parts:
+                        if hasattr(part, 'text') and part.text:
+                            return part.text
+            
+            # Fallback to checking result content
+            if hasattr(result, 'content'):
+                return result.content
+            
+            # Check artifacts as last resort
+            if hasattr(result, 'artifacts') and result.artifacts:
+                for artifact in result.artifacts:
+                    if hasattr(artifact, 'parts') and artifact.parts:
+                        for part in artifact.parts:
+                            if hasattr(part, 'text') and part.text:
+                                return part.text
+            
+            logger.warning(f"Unexpected response structure: {response}")
+            return "Unable to extract response from agent"
+            
         return "No response received from agent"
     except Exception as e:
         logger.error(f"Failed to route message: {e}")
