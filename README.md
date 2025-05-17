@@ -6,15 +6,15 @@ This project demonstrates the implementation of Google's Agent-to-Agent (A2A) Pr
 
 ### CrewAI Agent Server
 
-Located in `samples/python/agents/crewai`, this component implements an A2A server using the CrewAI framework. The agent demonstrates how CrewAI's capabilities can be exposed through the A2A protocol, allowing other agents to interact with its specialized functionalities.
+Located in `app/agents/crewai`, this component implements an A2A server using the CrewAI framework. The agent demonstrates how CrewAI's capabilities can be exposed through the A2A protocol, allowing other agents to interact with its specialized functionalities.
 
 ### LangGraph Agent Server
 
-Found in `samples/python/agents/langgraph`, this implementation shows how LangGraph-based agents can serve as A2A protocol servers. It demonstrates the integration of LangGraph's powerful flow-based agent architecture with the A2A protocol's communication standards.
+Found in `app/agents/langgraph`, this implementation shows how LangGraph-based agents can serve as A2A protocol servers. It demonstrates the integration of LangGraph's powerful flow-based agent architecture with the A2A protocol's communication standards.
 
 ### LangChain Hybrid Agent
 
-The `samples/python/agents/langchain` component showcases a dual-role implementation:
+The `app/agents/langchain` component showcases a dual-role implementation:
 
 - Acts as an A2A server, exposing LangChain agent capabilities
 - Functions as an A2A client, able to consume services from other A2A-compatible agents

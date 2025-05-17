@@ -86,7 +86,7 @@ coloredlogs==15.0.1
     # via onnxruntime
 crewai==0.95.0
     # via
-    #   a2a-samples-image-generation (pyproject.toml)
+    #   ai-heroes-demo-image-generation (pyproject.toml)
     #   crewai-tools
 crewai-tools==0.33.0
     # via crewai
@@ -141,7 +141,7 @@ google-auth==2.38.0
     #   google-genai
     #   kubernetes
 google-genai==1.9.0
-    # via a2a-samples-image-generation (pyproject.toml)
+    # via ai-heroes-demo-image-generation (pyproject.toml)
 googleapis-common-protos==1.69.2
     # via
     #   opentelemetry-exporter-otlp-proto-grpc

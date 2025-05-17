@@ -5,7 +5,7 @@ description = "Sample LangGraph calculation agent with A2A Protocol"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "a2a-samples",
+    "ai-heroes-demo",
     "click>=8.1.8",
     "httpx>=0.28.1",
     "langchain-google-genai>=2.0.10",
@@ -19,7 +19,7 @@ dependencies = [
 packages = ["."]
 
 [tool.uv.sources]
-a2a-samples = { workspace = true }
+ai-heroes-demo = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

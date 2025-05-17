@@ -24,7 +24,7 @@ The Langchain Router Agent acts as a middleware for routing tasks between A2A ag
 1. **Navigate to the Project Directory**:
 
    ```bash
-   cd samples/python/agents/langchain
+   cd app/agents/langchain
    ```
 
 2. **Set Up Environment Variables** (if required by your LLM):
@@ -56,7 +56,7 @@ The Langchain Router Agent acts as a middleware for routing tasks between A2A ag
 6. **Test the Agent**:
    Use an A2A client to send tasks to the agent:
    ```bash
-   cd samples/python/hosts/cli
+   cd app/hosts/cli
    uv run . --agent http://localhost:8080
    ```
 

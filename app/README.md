@@ -94,40 +94,43 @@ The CLI client serves as an A2A protocol client that:
 - Python 3.13 or higher
 - [UV](https://docs.astral.sh/uv/)
 
-## Running the Samples
+## Running the Demo
 
-Run all the [agents](/samples/python/agents/README.md) A2A servers and then start the CLI client. Follow these steps:
+Run all the [agents](/app/agents/README.md) A2A servers and then start the CLI client. Follow these steps:
 
 1. Navigate to the LangGraph agent directory:
    ```bash
-   cd samples/python/agents/langgraph
+   cd app/agents/langgraph
    ```
 2. Start the LangGraph agent:
+
    ```bash
    uv run .
    ```
 
 3. In another terminal, navigate to the CrewAI agent directory:
    ```bash
-   cd samples/python/agents/crewai
+   cd app/agents/crewai
    ```
 4. Start the CrewAI agent:
+
    ```bash
    uv run .
    ```
 
 5. In another terminal, navigate to the LangChain agent directory:
    ```bash
-   cd samples/python/agents/langchain
+   cd app/agents/langchain
    ```
 6. Start the LangChain agent:
+
    ```bash
    uv run .
    ```
 
 7. Finally, in another terminal, navigate to the CLI directory:
    ```bash
-   cd samples/python/hosts/cli
+   cd app/hosts/cli
    ```
 8. Start the CLI client:
    ```bash

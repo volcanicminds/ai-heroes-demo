@@ -37,7 +37,7 @@ This project demonstrates a currency conversion agent built using LangGraph and 
 1. Clone the repository and navigate to the project directory:
 
    ```bash
-   cd samples/python/agents/langgraph
+   cd app/agents/langgraph
    ```
 
 2. Install dependencies:

@@ -22,7 +22,7 @@ The CLI host application demonstrates the capabilities of an A2AClient by enabli
 
 1. Navigate to the CLI sample directory:
    ```bash
-   cd samples/python/hosts/cli
+   cd app/hosts/cli
    ```
 2. Start the CLI client:
    ```bash

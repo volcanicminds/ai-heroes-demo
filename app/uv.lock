@@ -12,8 +12,8 @@ members = [
     "a2a-sample-agent-langchain",
     "a2a-sample-agent-langgraph",
     "a2a-sample-client-cli",
-    "a2a-samples",
-    "a2a-samples-image-gen",
+    "ai-heroes-demo",
+    "ai-heroes-demo-image-gen",
 ]
 
 [[package]]
@@ -21,7 +21,7 @@ name = "a2a-sample-agent-langchain"
 version = "0.1.0"
 source = { editable = "agents/langchain" }
 dependencies = [
-    { name = "a2a-samples" },
+    { name = "ai-heroes-demo" },
     { name = "click" },
     { name = "httpx" },
     { name = "langchain" },
@@ -32,7 +32,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "a2a-samples", editable = "." },
+    { name = "ai-heroes-demo", editable = "." },
     { name = "click", specifier = ">=8.1.8" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "langchain", specifier = ">=0.2.0" },
@@ -46,7 +46,7 @@ name = "a2a-sample-agent-langgraph"
 version = "0.1.0"
 source = { editable = "agents/langgraph" }
 dependencies = [
-    { name = "a2a-samples" },
+    { name = "ai-heroes-demo" },
     { name = "click" },
     { name = "httpx" },
     { name = "langchain-google-genai" },
@@ -58,7 +58,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "a2a-samples", editable = "." },
+    { name = "ai-heroes-demo", editable = "." },
     { name = "click", specifier = ">=8.1.8" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "langchain-google-genai", specifier = ">=2.0.10" },
@@ -73,7 +73,7 @@ name = "a2a-sample-client-cli"
 version = "0.1.0"
 source = { editable = "hosts/cli" }
 dependencies = [
-    { name = "a2a-samples" },
+    { name = "ai-heroes-demo" },
     { name = "asyncclick" },
     { name = "sse-starlette" },
     { name = "starlette" },
@@ -81,14 +81,14 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "a2a-samples", editable = "." },
+    { name = "ai-heroes-demo", editable = "." },
     { name = "asyncclick", specifier = ">=8.1.8" },
     { name = "sse-starlette", specifier = ">=2.2.1" },
     { name = "starlette", specifier = ">=0.46.1" },
 ]
 
 [[package]]
-name = "a2a-samples"
+name = "ai-heroes-demo"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
@@ -131,18 +131,18 @@ dev = [
 ]
 
 [[package]]
-name = "a2a-samples-image-gen"
+name = "ai-heroes-demo-image-gen"
 version = "0.1.0"
 source = { virtual = "agents/crewai" }
 dependencies = [
-    { name = "a2a-samples" },
+    { name = "ai-heroes-demo" },
     { name = "crewai", extra = ["tools"] },
     { name = "google-genai" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "a2a-samples", editable = "." },
+    { name = "ai-heroes-demo", editable = "." },
     { name = "crewai", extras = ["tools"], specifier = ">=0.95.0" },
     { name = "google-genai", specifier = ">=1.9.0" },
 ]

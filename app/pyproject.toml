@@ -1,7 +1,7 @@
 [project]
-name = "a2a-samples"
+name = "ai-heroes-demo"
 version = "0.1.0"
-description = "Agent2Agent samples"
+description = "Agent2Agent demo"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

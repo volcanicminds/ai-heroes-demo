@@ -11,14 +11,14 @@ dependencies = [
     "python-dotenv>=1.1.0",
     "langchain-core>=0.2.0",
     "langchain-ollama>=0.3.2",
-    "a2a-samples",
+    "ai-heroes-demo",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]
 
 [tool.uv.sources]
-a2a-samples = { workspace = true }
+ai-heroes-demo = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

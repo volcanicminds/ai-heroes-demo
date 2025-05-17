@@ -31,7 +31,7 @@ The A2A protocol standardizes interactions, enabling seamless communication betw
 1. **Navigate to the project directory:**
 
    ```bash
-   cd samples/python/agents/crewai
+   cd app/agents/crewai
    ```
 
 2. **Set up environment variables:**
@@ -64,7 +64,7 @@ The A2A protocol standardizes interactions, enabling seamless communication betw
 6. **Run the A2A client:**
    In a separate terminal:
    ```bash
-   cd samples/python/hosts/cli
+   cd app/hosts/cli
    uv run . --agent http://localhost:10001
    ```
 
