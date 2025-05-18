@@ -115,63 +115,50 @@ class LangchainAgent:
         self.tools = [discover_agents, route_message]
 
         self.prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a specialized routing assistant. Your ONLY purpose is to forward messages to other agents and return their responses.
-        MANDATORY STEPS (execute in order):
-        1. Call `discover_agents()` to get the list of available agents
-        2. Select the most appropriate agent URL based on the request
-        3. Use `route_message(agent_url, message, session_id)` to forward the request and return its response
+            ("system", "You are a message routing assistant that intelligently forwards messages to the most appropriate agent based on their capabilities."),
+            ("system", """Steps:
+                1. Call discover_agents() to get available agents
+                2. Choose the most appropriate agent by matching the task to agent capabilities:
+                   - Content Generation Crew: For writing articles, stories, explanations
+                   - Calculator Agent: For math calculations only
+                3. Call route_message with:
+                   - agent_url from discover_agents results only
+                   - message unchanged
+                   - session_id exactly as provided"""),
+            ("human", "{message}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+            ("system", "Remember to call discover_agents first, then route_message.")
+        ])
 
-        IMPORTANT:
-        - The session_id is provided in the input variables
-        - You MUST use the exact session_id value provided
-        - You MUST return only the response from route_message
-         
-        CRITICAL: Always call `discover_agents` tool first to get the list of available agents.
-
-        Example usage [THIS IS JUST AND EXAMPLE]:
-        Input: "Get USD/EUR rate"
-        1. discover_agents() <--- This MUST be called first ALWAYS
-        2. route_message(
-            agent_url="http://localhost:10000", [THIS IS JUST AND EXAMPLE]
-            message="Get USD/EUR rate", 
-            session_id=input_variables.session_id  # Use the provided session_id
-        )
-         CRITICAL: session_id is available directly in the context. DO NOT use 'input_variables.session_id'
-         """),
-        ("human", "{message}"),
-        MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ("system", "Remember: You MUST call both discover_agents and route_message tools, in that order.")
-    ])
-
-        agent = create_tool_calling_agent(
+        self.agent = create_tool_calling_agent(
             llm=self.model,
             tools=self.tools,
             prompt=self.prompt
         )
 
         self.runnable = AgentExecutor(
-            agent=agent, 
+            agent=self.agent,
             tools=self.tools, 
             verbose=True,
             handle_parsing_errors=True,
             max_iterations=3,
             return_intermediate_steps=True
-            )
+        )
 
     async def async_invoke(self, query: str, session_id: str) -> Dict[str, Any]:
         try:
-            logger.info(f"🤖 Starting agent with query: '{query}'")
+            logger.info(f"🤖 Starting agent with query: '{query}' with session_id: {session_id}")
             # Reinitialize the model and agent to ensure a fresh connection
             self.model = ChatOllama(model="acidtib/qwen2.5-coder-cline:7b", temperature=0)
             # Recreate the agent with the new model
-            agent = create_tool_calling_agent(
+            self.agent = create_tool_calling_agent(
                 llm=self.model,
                 tools=self.tools,
                 prompt=self.prompt
             )
             # Update the runnable with the new agent
             self.runnable = AgentExecutor(
-                agent=agent,
+                agent=self.agent,
                 tools=self.tools,
                 verbose=True,
                 handle_parsing_errors=True,
@@ -227,19 +214,14 @@ class LangchainAgent:
         """
         try:
             logger.info(f"🎯 Processing request: '{query}'")
-            # Use asyncio.get_event_loop().run_until_complete for running the async function
-            # from synchronous code
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 logger.warning("⚡️ Event loop already active - switching to thread execution")
-                # If we're in an already running loop (e.g., inside FastAPI),
-                # we can't run_until_complete - must use asyncio.run_coroutine_threadsafe
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(lambda: asyncio.run(self.async_invoke(query, session_id)))
                     return future.result()
             else:
-                # Normal case - run the coroutine in the current loop
                 return loop.run_until_complete(self.async_invoke(query, session_id))
         except Exception as e:
             logger.exception(f"Error in invoke: {e}")

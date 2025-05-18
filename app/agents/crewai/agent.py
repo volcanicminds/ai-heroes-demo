@@ -117,7 +117,7 @@ class ContentGenerationCrew:
             output_log_file="crew_execution.json"  # Save detailed execution logs in JSON format
         )
 
-    def invoke(self, query, session_id) -> str:
+    def invoke(self, query, session_id) -> dict:
         """Process content generation request."""
         logger.info(f"\n📋 New Content Generation Task")
         logger.info(f"🆔 Session: {session_id}")
@@ -133,10 +133,18 @@ class ContentGenerationCrew:
         try:
             response = self.content_crew.kickoff(inputs)
             logger.info("✅ Content generation completed successfully!")
-            return response
+            return {
+                "is_task_complete": True,
+                "require_user_input": False,
+                "content": response
+            }
         except Exception as e:
             logger.error(f"❌ Error during content generation: {str(e)}")
-            raise
+            return {
+                "is_task_complete": True,
+                "require_user_input": False,
+                "content": f"Error during content generation: {str(e)}"
+            }
 
     async def stream(self, query: str) -> AsyncIterable[dict[str, Any]]:
         """Streaming is not supported by CrewAI."""
