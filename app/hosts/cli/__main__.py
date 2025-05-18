@@ -1,6 +1,4 @@
 import asyncio
-import base64
-import os
 import urllib
 
 from uuid import uuid4
@@ -129,26 +127,6 @@ async def completeTask(
             }
         ],
     }
-
-    file_path = click.prompt(
-        'Select a file path to attach? (press enter to skip)',
-        default='',
-        show_default=False,
-    )
-    if file_path and file_path.strip() != '':
-        with open(file_path, 'rb') as f:
-            file_content = base64.b64encode(f.read()).decode('utf-8')
-            file_name = os.path.basename(file_path)
-
-        message['parts'].append(
-            {
-                'type': 'file',
-                'file': {
-                    'name': file_name,
-                    'bytes': file_content,
-                },
-            }
-        )
 
     payload = {
         'id': taskId,
