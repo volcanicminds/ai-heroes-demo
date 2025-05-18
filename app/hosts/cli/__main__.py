@@ -26,8 +26,9 @@ async def cli(
     card_resolver = A2ACardResolver(agent)
     card = card_resolver.get_agent_card()
 
-    print('======= Agent Card ========')
-    print(card.model_dump_json(exclude_none=True))
+    print('\n🤖 Successfully connected to AI Agent')
+    print('📋 Available capabilities:')
+    print(card.model_dump_json(exclude_none=True, indent=2))
 
     notif_receiver_parsed = urllib.parse.urlparse(push_notification_receiver)
     notification_receiver_host = notif_receiver_parsed.hostname
@@ -61,7 +62,7 @@ async def cli(
 
     while continue_loop:
         taskId = uuid4().hex
-        print('=========  starting a new task ======== ')
+        print('\n🔄 Starting a new conversation')
         continue_loop = await completeTask(
             client,
             streaming,
@@ -73,7 +74,7 @@ async def cli(
         )
 
         if history and continue_loop:
-            print('========= history ======== ')
+            print('\n📜 Conversation History:')
             task_response = await client.get_task(
                 {'id': taskId, 'historyLength': 10}
             )
@@ -166,15 +167,15 @@ async def completeTask(
             if minimal_result_keys.issubset({'id', 'status', 'final'}) \
                 and set(status_dict.keys()).issubset({'state', 'timestamp', 'message'}):
                 continue
-            print(f'stream event => {result.model_dump_json(exclude_none=True)}')
+            print(f'\n🔄 Stream update: {result.model_dump_json(exclude_none=True, indent=2)}')
 
         taskResult = await client.get_task({'id': taskId})
     else:
-        # Display loading animation
-        print('\nLoading...')
+        # Display thinking animation
+        print('\n🤔 AI Agent is thinking...')
         taskResult = await client.send_task(payload)
-        # Clear loading animation (replace with spaces)
-        print('\r' + ' ' * 20, end='')
+        # Clear thinking message
+        print('\r' + ' ' * 30, end='')
         
         try:
             # First try to get text from status message
