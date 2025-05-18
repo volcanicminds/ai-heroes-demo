@@ -64,33 +64,35 @@ class ResponseFormat(BaseModel):
 
 
 class CalculationAgent:
-    SYSTEM_INSTRUCTION = '''You are a calculator. OUTPUT ONLY THE calculate() FUNCTION CALL.
+    SYSTEM_INSTRUCTION = '''You are a calculator that processes mathematical queries. Output must ONLY be function calls in correct format.
 
-Available: abs(), sqrt(), sin(), cos(), tan(), pi, e
+Available Math Operations:
+- Basic: +, -, *, /, ()
+- Functions: abs(), sqrt(), sin(), cos(), tan()
+- Constants: pi, e
 
-Examples - COPY THIS FORMAT EXACTLY:
+EXAMPLES OF VALID RESPONSES:
 
-Input: calculate 12 plus 78 times 123 and do the square root
-Output: calculate("sqrt(12 + 78 * 123)")
+User: calculate square root of 144
+Assistant: calculate("sqrt(144)")
 
-Input: 21 * 122
-Output: calculate("21 * 122")
+User: what is 3 plus 4
+Assistant: calculate("3 + 4")
 
-Input: what's nine plus ten
-Output: calculate("9 + 10")
+User: sine of pi
+Assistant: calculate("sin(pi)")
 
-Input: square root of 25 times 4
-Output: calculate("sqrt(25 * 4)")
+User: what is five plus ten
+Assistant: calculate("5 + 10")
 
-Input: sine of pi divided by 2
-Output: calculate("sin(pi/2)")
-
-REQUIRED FORMAT:
-1. No text before or after calculate()
-2. No explanations
-3. No formatting
-4. No "the answer is"
-5. ONLY the calculate() call'''
+STRICT REQUIREMENTS:
+1. ONLY output the calculate() function call
+2. Expression MUST be in double quotes
+3. Use mathematical operators (+,-,*,/)
+4. No explanations or extra text
+5. No formatting or whitespace
+6. First parse query to math expression
+7. Then wrap in calculate("...")'''
 
     def __init__(self):
         self.model = ChatOllama(
@@ -102,31 +104,30 @@ REQUIRED FORMAT:
             self.model,
             tools=[calculate],
             checkpointer=memory,
-            prompt=self.SYSTEM_INSTRUCTION,
-            response_format=ResponseFormat,
+            prompt=self.SYSTEM_INSTRUCTION
         )
 
     def invoke(self, query: str, sessionId: str) -> dict:
-        logger.info(f"[CalculationAgent] Invoking with query: {query}")
+        logger.info(f"🧮 Received calculation request: '{query}'")
         config = {'configurable': {'thread_id': sessionId}}
         response = self.graph.invoke({'messages': [('user', query)]}, config)
-        logger.info(f"[CalculationAgent] Graph invoke response: {response}")
+        logger.info(f"🔄 Processing calculation through LangGraph...")
         result = self.get_agent_response(config)
-        logger.info(f"[CalculationAgent] Final response: {result}")
+        logger.info(f"✨ Calculation result: {result}")
         return result
 
     async def stream(self, query: str, sessionId: str) -> AsyncIterable[dict[str, Any]]:
-        logger.info(f"[CalculationAgent] Starting stream with query: {query}")
+        logger.info(f"🚀 Starting interactive calculation for: '{query}'")
         inputs = {'messages': [('user', query)]}
         config = {'configurable': {'thread_id': sessionId}}
 
         for item in self.graph.stream(inputs, config, stream_mode='values'):
             message = item['messages'][-1]
-            logger.info(f"[CalculationAgent] Stream message: {message}")
+            logger.info(f"📝 Current step: {message}")
             if isinstance(message, (AIMessage, ToolMessage)):
-                logger.info(f"[CalculationAgent] Processing message type: {type(message)}")
-                logger.info(f"[CalculationAgent] Message content: {message.content if hasattr(message, 'content') else None}")
-                logger.info(f"[CalculationAgent] Tool calls: {message.tool_calls if hasattr(message, 'tool_calls') else None}")
+                logger.info(f"🔍 Analyzing expression...")
+                logger.info(f"💭 Thinking: {message.content if hasattr(message, 'content') else 'Processing...'}")
+                logger.info(f"🛠️ Using math tools: {message.tool_calls if hasattr(message, 'tool_calls') else 'None'}")
                 yield {
                     'is_task_complete': False,
                     'require_user_input': False,
@@ -134,23 +135,42 @@ REQUIRED FORMAT:
                 }
 
         final_response = self.get_agent_response(config)
-        logger.info(f"[CalculationAgent] Stream final response: {final_response}")
+        logger.info(f"✅ Calculation complete! Result: {final_response}")
         yield final_response
 
     def get_agent_response(self, config: dict) -> dict:
-        logger.info("[CalculationAgent] Getting agent response")
+        logger.info("📊 Preparing final calculation result...")
         current_state = self.graph.get_state(config)
-        logger.info(f"[CalculationAgent] Current state: {current_state}")
-        structured_response = current_state.values.get('structured_response')
-        logger.info(f"[CalculationAgent] Structured response: {structured_response}")
+        logger.info(f"🔄 Current calculation state: {current_state}")
         
-        if isinstance(structured_response, ResponseFormat):
-            logger.info(f"[CalculationAgent] Valid ResponseFormat received with status: {structured_response.status}")
+        # Get the last message from the state
+        messages = current_state.values.get('messages', [])
+        if not messages:
             return {
-                'is_task_complete': structured_response.status == 'completed',
-                'require_user_input': structured_response.status in ['input_required', 'error'],
-                'content': structured_response.message,
+                'is_task_complete': False,
+                'require_user_input': True,
+                'content': 'No response received',
             }
+            
+        # Find the last result from a calculate tool call
+        for msg in reversed(messages):
+            if isinstance(msg, ToolMessage) and msg.name == 'calculate':
+                try:
+                    result = eval(msg.content)  # Safe since we know this is our JSON response
+                    if 'error' in result:
+                        return {
+                            'is_task_complete': False,
+                            'require_user_input': True,
+                            'content': result['error'],
+                        }
+                    return {
+                        'is_task_complete': True,
+                        'require_user_input': False,
+                        'content': str(result['result']),
+                    }
+                except Exception as e:
+                    logger.error(f"Error processing result: {e}")
+                break
 
         return {
             'is_task_complete': False,
