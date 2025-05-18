@@ -179,3 +179,9 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# CrewAI output and temporary files
+**/crew_execution.json
+**/draft.txt
+**/final.txt
+**/outline.txt
