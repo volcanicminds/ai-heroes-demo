@@ -34,9 +34,9 @@ def discover_agents() -> List[Dict[str, Any]]:
                 "description": card.description,
                 "url": url
             })
-            logger.info(f"Discovered agent: {card.name} at {url}")
+            logger.info(f"✅ Found available agent '{card.name}' running at {url}")
         except Exception as e:
-            logger.warning(f"Failed to contact {url}: {e}")
+            logger.warning(f"❌ Could not reach agent at {url}: {e}")
     return discovered_agents
 
 @tool
@@ -57,16 +57,16 @@ async def route_message(agent_url: str, message: str, session_id: str) -> str:
             message=Message(role="user", parts=[TextPart(text=message)]),
             acceptedOutputModes=["text", "text/plain"]
         )
-        logger.info(f"Sending task to agent at {agent_url} with timeout {DEFAULT_TIMEOUT}s")
+        logger.info(f"🚀 Forwarding request to agent at {agent_url} (timeout: {DEFAULT_TIMEOUT}s)")
         
         try:
             response = await client.send_task(request)
         except httpx.ReadTimeout:
-            error_msg = f"Request to {agent_url} timed out after {DEFAULT_TIMEOUT} seconds"
+            error_msg = f"⏰ Request timed out after {DEFAULT_TIMEOUT} seconds waiting for {agent_url}"
             logger.error(error_msg)
             return f"{error_msg}. The agent might be busy or not responding. Try increasing the timeout or try again later."
         except httpx.ConnectError:
-            error_msg = f"Could not connect to {agent_url}"
+            error_msg = f"❌ Connection failed to {agent_url}"
             logger.error(error_msg)
             return f"{error_msg}. Please check if the agent is running and accessible."
         except httpx.HTTPError as e:
@@ -97,7 +97,7 @@ async def route_message(agent_url: str, message: str, session_id: str) -> str:
                             if hasattr(part, 'text') and part.text:
                                 return part.text
             
-            logger.warning(f"Unexpected response structure: {response}")
+            logger.warning(f"⚠️ Unexpected response format received: {response}")
             return "Unable to extract response from agent"
             
         return "No response received from agent"
@@ -160,7 +160,7 @@ class LangchainAgent:
 
     async def async_invoke(self, query: str, session_id: str) -> Dict[str, Any]:
         try:
-            logger.info(f"Async invoking with query: {query}")
+            logger.info(f"🤖 Starting agent with query: '{query}'")
             # Reinitialize the model and agent to ensure a fresh connection
             self.model = ChatOllama(model="acidtib/qwen2.5-coder-cline:7b", temperature=0)
             # Recreate the agent with the new model
@@ -191,7 +191,7 @@ class LangchainAgent:
                     if isinstance(step, tuple) and len(step) == 2:
                         action, result = step
                         if action.tool == 'route_message':
-                            logger.info(f"Found route_message response: {result}")
+                            logger.info(f"✨ Response received: {result}")
                             if isinstance(result, str) and not result.startswith("Routing failed"):
                                 return {
                                     "is_task_complete": True,
@@ -200,7 +200,7 @@ class LangchainAgent:
                                 }
                 
                 # If we got here, no valid route_message response was found
-                logger.warning("No valid route_message response found in steps")
+                logger.warning("❌ No valid response received from target agent")
                 return {
                     "is_task_complete": True,
                     "require_user_input": False,
@@ -213,7 +213,7 @@ class LangchainAgent:
                 "content": "Failed to process agent response."
             }
         except Exception as e:
-            logger.exception(f"Async invocation failed: {e}")
+            logger.exception(f"❌ Agent execution failed: {e}")
             return {
                 "is_task_complete": True,
                 "require_user_input": False,
@@ -226,12 +226,12 @@ class LangchainAgent:
         This method ensures we properly handle the async/sync boundary.
         """
         try:
-            logger.info(f"Invoking with query: {query}")
+            logger.info(f"🎯 Processing request: '{query}'")
             # Use asyncio.get_event_loop().run_until_complete for running the async function
             # from synchronous code
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                logger.warning("Event loop already running, cannot use run_until_complete. Using run in thread.")
+                logger.warning("⚡️ Event loop already active - switching to thread execution")
                 # If we're in an already running loop (e.g., inside FastAPI),
                 # we can't run_until_complete - must use asyncio.run_coroutine_threadsafe
                 import concurrent.futures
@@ -250,5 +250,5 @@ class LangchainAgent:
             }
 
     async def stream(self, query: str, session_id: str) -> AsyncIterable[Dict[str, Any]]:
-        logger.warning("Streaming is not supported.")
+        logger.warning("⚠️ Streaming functionality is not yet implemented")
         raise NotImplementedError("Streaming is not implemented.")
