@@ -108,26 +108,28 @@ STRICT REQUIREMENTS:
         )
 
     def invoke(self, query: str, sessionId: str) -> dict:
-        logger.info(f"🧮 Received calculation request: '{query}'")
+        logger.info(f"🤔 Processing calculation request: '{query}'")
         config = {'configurable': {'thread_id': sessionId}}
         response = self.graph.invoke({'messages': [('user', query)]}, config)
-        logger.info(f"🔄 Processing calculation through LangGraph...")
+        logger.info(f"⚡️ Starting calculation pipeline...")
         result = self.get_agent_response(config)
-        logger.info(f"✨ Calculation result: {result}")
+        logger.info(f"✨ Result: {result['content']}")
         return result
 
     async def stream(self, query: str, sessionId: str) -> AsyncIterable[dict[str, Any]]:
-        logger.info(f"🚀 Starting interactive calculation for: '{query}'")
+        logger.info(f"🚀 Starting interactive calculation session")
+        logger.info(f"📝 User Query: '{query}'")
         inputs = {'messages': [('user', query)]}
         config = {'configurable': {'thread_id': sessionId}}
 
         for item in self.graph.stream(inputs, config, stream_mode='values'):
             message = item['messages'][-1]
-            logger.info(f"📝 Current step: {message}")
             if isinstance(message, (AIMessage, ToolMessage)):
-                logger.info(f"🔍 Analyzing expression...")
-                logger.info(f"💭 Thinking: {message.content if hasattr(message, 'content') else 'Processing...'}")
-                logger.info(f"🛠️ Using math tools: {message.tool_calls if hasattr(message, 'tool_calls') else 'None'}")
+                logger.info(f"🧮 Processing mathematical expression...")
+                if hasattr(message, 'content'):
+                    logger.info(f"💭 AI thinking process: {message.content}")
+                if hasattr(message, 'tool_calls'):
+                    logger.info(f"🛠️ Mathematical tools in use: {message.tool_calls}")
                 yield {
                     'is_task_complete': False,
                     'require_user_input': False,
@@ -135,17 +137,18 @@ STRICT REQUIREMENTS:
                 }
 
         final_response = self.get_agent_response(config)
-        logger.info(f"✅ Calculation complete! Result: {final_response}")
+        logger.info(f"🎉 Calculation complete! Answer: {final_response['content']}")
         yield final_response
 
     def get_agent_response(self, config: dict) -> dict:
-        logger.info("📊 Preparing final calculation result...")
+        logger.info("📊 Preparing final result...")
         current_state = self.graph.get_state(config)
-        logger.info(f"🔄 Current calculation state: {current_state}")
+        logger.info(f"🔄 Current state: Processing complete")
         
         # Get the last message from the state
         messages = current_state.values.get('messages', [])
         if not messages:
+            logger.warning("❌ No response received from calculation engine")
             return {
                 'is_task_complete': False,
                 'require_user_input': True,
@@ -158,20 +161,23 @@ STRICT REQUIREMENTS:
                 try:
                     result = eval(msg.content)  # Safe since we know this is our JSON response
                     if 'error' in result:
+                        logger.error(f"⚠️ Calculation error: {result['error']}")
                         return {
                             'is_task_complete': False,
                             'require_user_input': True,
                             'content': result['error'],
                         }
+                    logger.info(f"✅ Calculation successful!")
                     return {
                         'is_task_complete': True,
                         'require_user_input': False,
                         'content': str(result['result']),
                     }
                 except Exception as e:
-                    logger.error(f"Error processing result: {e}")
+                    logger.error(f"❌ Error processing result: {str(e)}")
                 break
 
+        logger.warning("⚠️ Unable to process calculation request")
         return {
             'is_task_complete': False,
             'require_user_input': True,
