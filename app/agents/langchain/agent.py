@@ -161,6 +161,23 @@ class LangchainAgent:
     async def async_invoke(self, query: str, session_id: str) -> Dict[str, Any]:
         try:
             logger.info(f"Async invoking with query: {query}")
+            # Reinitialize the model and agent to ensure a fresh connection
+            self.model = ChatOllama(model="acidtib/qwen2.5-coder-cline:7b", temperature=0)
+            # Recreate the agent with the new model
+            agent = create_tool_calling_agent(
+                llm=self.model,
+                tools=self.tools,
+                prompt=self.prompt
+            )
+            # Update the runnable with the new agent
+            self.runnable = AgentExecutor(
+                agent=agent,
+                tools=self.tools,
+                verbose=True,
+                handle_parsing_errors=True,
+                max_iterations=3,
+                return_intermediate_steps=True
+            )
             # Make session_id directly available in the context
             output = await self.runnable.ainvoke({
                 "message": query,
