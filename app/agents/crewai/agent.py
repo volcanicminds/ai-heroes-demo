@@ -3,19 +3,22 @@
 Handles the agents and also presents the tools required.
 """
 
-import logging
 from collections.abc import AsyncIterable
 from typing import Any
-
-from common.utils.in_memory_cache import InMemoryCache
 from crewai import LLM, Agent, Crew, Task
 from crewai import Process
 from dotenv import load_dotenv
-from pydantic import BaseModel
+import logging
+from datetime import datetime
 
 load_dotenv()
 
+# Configure logging for better demo presentation
 logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s'  # Clean format for demo purposes
+)
 
 class ContentGenerationCrew:
     """Crew that generates content using a team of specialized agents."""
@@ -23,20 +26,25 @@ class ContentGenerationCrew:
     SUPPORTED_CONTENT_TYPES = ['text', 'text/plain']
 
     def __init__(self):
-        logger.info("Initializing ContentGenerationCrew with specialized agents")
+        logger.info("\n🚀 Initializing AI Content Generation Crew...")
         self.model = LLM(
             model="ollama/llama3.2:latest",
             base_url="http://localhost:11434"
         )
         
-        # Define the agents with callbacks for logging
+        # Define the agents with enhanced demo-friendly logging
         def log_agent_action(agent_name: str, input_text: str, output_text: str):
-            logger.info(f"\n{'='*50}\n{agent_name} AGENT ACTION:")
-            logger.info(f"INPUT:\n{input_text}")
-            logger.info(f"OUTPUT:\n{output_text}\n{'='*50}\n")
-            print(f"\n{'='*50}\n{agent_name} AGENT ACTION:")
-            print(f"INPUT:\n{input_text}")
-            print(f"OUTPUT:\n{output_text}\n{'='*50}\n")
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            print(f"\n{'='*80}")
+            print(f"⏰ {timestamp} | 🤖 {agent_name} is working...")
+            print(f"{'='*80}")
+            print(f"📥 INPUT:")
+            print(f"{'-'*80}")
+            print(f"{input_text}")
+            print(f"\n📤 OUTPUT:")
+            print(f"{'-'*80}")
+            print(f"{output_text}")
+            print(f"{'='*80}\n")
 
         # Define the agents
         self.planner = Agent(
@@ -110,24 +118,24 @@ class ContentGenerationCrew:
         )
 
     def invoke(self, query, session_id) -> str:
-        """Kickoff CrewAI and return the response."""
-        logger.info(f"Starting new content generation task - Session ID: {session_id}")
-        logger.info(f"User Query: {query}")
+        """Process content generation request."""
+        logger.info(f"\n📋 New Content Generation Task")
+        logger.info(f"🆔 Session: {session_id}")
+        logger.info(f"❓ Query: {query}\n")
         
         inputs = {
             'user_prompt': query,
             'session_id': session_id,
         }
         
-        logger.info("Initiating CrewAI workflow with inputs:")
-        logger.info(f"Inputs: {inputs}")
+        logger.info("🎬 Starting CrewAI workflow...")
         
         try:
             response = self.content_crew.kickoff(inputs)
-            logger.info("Content generation completed successfully")
+            logger.info("✅ Content generation completed successfully!")
             return response
         except Exception as e:
-            logger.error(f"Error during content generation: {str(e)}")
+            logger.error(f"❌ Error during content generation: {str(e)}")
             raise
 
     async def stream(self, query: str) -> AsyncIterable[dict[str, Any]]:
