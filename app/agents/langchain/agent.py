@@ -119,8 +119,8 @@ class LangchainAgent:
             ("system", """Steps:
                 1. Call discover_agents() to get available agents
                 2. Choose the most appropriate agent by matching the task to agent capabilities:
-                   - Content Generation Crew: For writing articles, stories, explanations
-                   - Calculator Agent: For math calculations only
+                   - A Content Generation Agentic System: For writing articles, stories, explanations
+                   - A Calculator Agent: For math calculations only
                 3. Call route_message with:
                    - agent_url from discover_agents results only
                    - message unchanged
