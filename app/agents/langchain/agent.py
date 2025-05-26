@@ -20,7 +20,7 @@ logging.getLogger("langchain").setLevel(logging.WARNING)
 logger = logging.getLogger("agent")
 
 AGENT_URLS = ["http://localhost:10000", "http://localhost:10001"]
-DEFAULT_TIMEOUT: Union[float, tuple[float, float, float, float], None] = 120.0  # 2 minutes timeout
+DEFAULT_TIMEOUT: Union[float, tuple[float, float, float, float], None] = 180.0  # 3 minutes timeout
 
 @tool
 def discover_agents() -> List[Dict[str, Any]]:
