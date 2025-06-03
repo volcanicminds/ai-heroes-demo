@@ -31,7 +31,7 @@ def main(host, port):
         capabilities = AgentCapabilities(streaming=True, pushNotifications=True)
         skill = AgentSkill(
             id='calculate',
-            name='Calculator Tool',
+            name='Calculator Skill',
             description='Performs mathematical calculations using Python math functions',
             tags=['calculator', 'math', 'arithmetic'],
             examples=[

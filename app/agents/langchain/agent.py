@@ -4,15 +4,20 @@ from typing import List, Dict, Any, Union
 import asyncio
 from collections.abc import AsyncIterable
 import httpx
+import os
+from dotenv import load_dotenv
 
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import tool
-from langchain_ollama import ChatOllama
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from common.client.card_resolver import A2ACardResolver
 from common.client.client import A2AClient
 from common.types import TaskSendParams, Message, TextPart
+
+# Load environment variables from .env file
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +30,7 @@ DEFAULT_TIMEOUT: Union[float, tuple[float, float, float, float], None] = 180.0  
 @tool
 def discover_agents() -> List[Dict[str, Any]]:
     """Discovers other A2A agents at predefined URLs."""
+    logger.info("🔍 Discovering available agents...")
     discovered_agents = []
     for url in AGENT_URLS:
         try:
@@ -49,6 +55,7 @@ async def route_message(agent_url: str, message: str, session_id: str) -> str:
         session_id: The session ID for tracking the conversation
     """
     try:
+        logger.info(f"🔗 Routing message to agent at {agent_url} with session_id: {session_id}")
         client = A2AClient(url=agent_url, timeout=DEFAULT_TIMEOUT)
         task_id = str(uuid.uuid4())
         request = TaskSendParams(
@@ -111,23 +118,27 @@ class LangchainAgent:
     SUPPORTED_CONTENT_TYPES = ['text', 'text/plain']
 
     def __init__(self):
-        self.model = ChatOllama(model="acidtib/qwen2.5-coder-cline:7b", temperature=0)
+        # Use Google Gemini model instead of Ollama
+        self.model = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash-preview-04-17",  # or another Gemini model name if needed
+            temperature=0,
+            google_api_key=os.environ.get("GOOGLE_API_KEY")
+        )
         self.tools = [discover_agents, route_message]
 
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", "You are a message routing assistant that intelligently forwards messages to the most appropriate agent based on their capabilities."),
             ("system", """Steps:
-                1. Call discover_agents() to get available agents
+                1. Call discover_agents *tool* to get available agents
                 2. Choose the most appropriate agent by matching the task to agent capabilities:
                    - A Content Generation Agentic System: For writing articles, stories, explanations
                    - A Calculator Agent: For math calculations only
-                3. Call route_message with:
+                3. Call route_message *tool* with:
                    - agent_url from discover_agents results only
                    - message unchanged
                    - session_id exactly as provided"""),
             ("human", "{message}"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
-            ("system", "Remember to call discover_agents first, then route_message.")
         ])
 
         self.agent = create_tool_calling_agent(
@@ -136,12 +147,11 @@ class LangchainAgent:
             prompt=self.prompt
         )
 
-        self.runnable = AgentExecutor(
+        self.runnable = AgentExecutor.from_agent_and_tools(
             agent=self.agent,
             tools=self.tools, 
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=3,
             return_intermediate_steps=True
         )
 
@@ -149,7 +159,11 @@ class LangchainAgent:
         try:
             logger.info(f"🤖 Starting agent with query: '{query}' with session_id: {session_id}")
             # Reinitialize the model and agent to ensure a fresh connection
-            self.model = ChatOllama(model="acidtib/qwen2.5-coder-cline:7b", temperature=0)
+            self.model = ChatGoogleGenerativeAI(
+                model="gemini-2.5-flash-preview-04-17",
+                temperature=0,
+                google_api_key=os.environ.get("GOOGLE_API_KEY")
+            )
             # Recreate the agent with the new model
             self.agent = create_tool_calling_agent(
                 llm=self.model,
@@ -157,23 +171,25 @@ class LangchainAgent:
                 prompt=self.prompt
             )
             # Update the runnable with the new agent
-            self.runnable = AgentExecutor(
+            self.runnable = AgentExecutor.from_agent_and_tools(
                 agent=self.agent,
                 tools=self.tools,
                 verbose=True,
                 handle_parsing_errors=True,
-                max_iterations=3,
-                return_intermediate_steps=True
+                return_intermediate_steps=True,
             )
-            # Make session_id directly available in the context
+            # Pass a single input dict
             output = await self.runnable.ainvoke({
                 "message": query,
                 "session_id": session_id
             })
+
+            logger.info("✅ Agent execution completed successfully with output:")
             
             # Enhanced response handling
             if isinstance(output, dict):
                 steps = output.get('intermediate_steps', [])
+                logger.info(f"🔍 Found {len(steps)} intermediate steps in the output")
                 for step in reversed(steps):
                     if isinstance(step, tuple) and len(step) == 2:
                         action, result = step
